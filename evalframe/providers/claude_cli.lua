@@ -77,6 +77,11 @@ local function cli_call(prompt, opts)
     parts[#parts + 1] = tostring(opts.max_tokens)
   end
 
+  if opts.cwd then
+    parts[#parts + 1] = "--cwd"
+    parts[#parts + 1] = shell_escape(opts.cwd)
+  end
+
   parts[#parts + 1] = shell_escape(prompt)
   parts[#parts + 1] = "2>/dev/null"
 

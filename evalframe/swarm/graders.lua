@@ -47,6 +47,9 @@ function M.efficiency(opts)
 
   local max_t = opts.max_ticks
   local opt_t = opts.optimal_ticks or 0
+  if opt_t >= max_t then
+    error("sw.graders.efficiency: optimal_ticks must be less than max_ticks", 2)
+  end
 
   return grader "sw.efficiency" {
     check = function(resp, _case)

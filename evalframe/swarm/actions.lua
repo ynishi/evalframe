@@ -35,19 +35,19 @@ local ACTION_SPACE_TAG = {}
 
 function M.build_action(name)
   if type(name) ~= "string" then
-    error(string.format("sw.action: name must be string, got %s", type(name)), 3)
+    error(string.format("sw.action: name must be string, got %s", type(name)), 2)
   end
 
   return function(spec)
     if type(spec) ~= "table" then
-      error(string.format("sw.action '%s': spec must be a table", name), 3)
+      error(string.format("sw.action '%s': spec must be a table", name), 2)
     end
 
     if spec.description == nil then
-      error(string.format("sw.action '%s': description is required", name), 3)
+      error(string.format("sw.action '%s': description is required", name), 2)
     end
     if type(spec.description) ~= "string" then
-      error(string.format("sw.action '%s': description must be string, got %s", name, type(spec.description)), 3)
+      error(string.format("sw.action '%s': description must be string, got %s", name, type(spec.description)), 2)
     end
 
     -- Separate evalframe-managed fields from domain-specific context

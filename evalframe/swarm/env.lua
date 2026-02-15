@@ -22,12 +22,12 @@ local ENV_TAG = {}
 
 function M.build(name)
   if type(name) ~= "string" then
-    error(string.format("sw.env: name must be string, got %s", type(name)), 3)
+    error(string.format("sw.env: name must be string, got %s", type(name)), 2)
   end
 
   return function(spec)
     if type(spec) ~= "table" then
-      error(string.format("sw.env '%s': spec must be a table", name), 3)
+      error(string.format("sw.env '%s': spec must be a table", name), 2)
     end
 
     return {

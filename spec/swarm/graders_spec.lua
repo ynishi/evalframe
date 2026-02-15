@@ -100,6 +100,18 @@ describe("sw.graders", function()
       end, "max_ticks is required")
     end)
 
+    it("rejects optimal_ticks >= max_ticks", function()
+      h.assert_error_contains(function()
+        sw.graders.efficiency { max_ticks = 10, optimal_ticks = 10 }
+      end, "optimal_ticks must be less than max_ticks")
+    end)
+
+    it("rejects optimal_ticks > max_ticks", function()
+      h.assert_error_contains(function()
+        sw.graders.efficiency { max_ticks = 5, optimal_ticks = 10 }
+      end, "optimal_ticks must be less than max_ticks")
+    end)
+
     it("defaults optimal_ticks to 0", function()
       local g = sw.graders.efficiency { max_ticks = 10 }
       local grade = check(g, success_trace({ ticks = 0 }))
@@ -159,6 +171,11 @@ describe("sw.graders", function()
       h.assert_error_contains(function()
         sw.graders.action_sequence {}
       end, "at least 1 action")
+    end)
+
+    it("includes sequence in grader name", function()
+      local g = sw.graders.action_sequence { "A", "B", "C" }
+      assert.equals("sw.action_sequence:A,B,C", g.name)
     end)
   end)
 

@@ -66,13 +66,16 @@ function M.build(runner, opts)
       }
     end
 
-    -- Inject latency_ms fallback before construction (avoid post-build mutation)
+    -- Set latency_ms fallback without mutating runner's return value
+    local trace_input = raw
     if raw.latency_ms == nil then
-      raw.latency_ms = elapsed
+      trace_input = {}
+      for k, v in pairs(raw) do trace_input[k] = v end
+      trace_input.latency_ms = elapsed
     end
 
     -- Validate and wrap as SwarmTrace
-    return trace_mod.build(raw)
+    return trace_mod.build(trace_input)
   end
 end
 

@@ -101,10 +101,13 @@ else
   M.fs = {
     read_file = function(path)
       check_path(path)
-      local f, err = io.open(path, "r")
-      if not f then error(string.format("std.fs.read_file: %s", err), 2) end
-      local content = f:read("*a")
+      local f, open_err = io.open(path, "r")
+      if not f then error(string.format("std.fs.read_file: %s", open_err), 2) end
+      local content, read_err = f:read("*a")
       f:close()
+      if content == nil then
+        error(string.format("std.fs.read_file: read failed: %s", read_err or "unknown"), 2)
+      end
       return content
     end,
     file_exists = function(path)

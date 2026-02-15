@@ -47,6 +47,20 @@ end
 -- Constructor
 -- ============================================================
 
+--- Shallow-copy an array table.
+local function copy_list(t)
+  local out = {}
+  for i, v in ipairs(t) do out[i] = v end
+  return out
+end
+
+--- Shallow-copy a hash table.
+local function copy_table(t)
+  local out = {}
+  for k, v in pairs(t) do out[k] = v end
+  return out
+end
+
 --- Internal builder (error level 3 for call via __call).
 local function build(raw)
   if type(raw) ~= "table" then
@@ -72,6 +86,7 @@ local function build(raw)
   end
 
   -- expected (polymorphic: string, string[], or nil)
+  -- Always defensive-copy to prevent caller mutation.
   local exp = raw.expected
   if exp ~= nil then
     if type(exp) == "string" then
@@ -82,23 +97,25 @@ local function build(raw)
           error(string.format("Case: expected[%d] must be string, got %s (%s)", i, type(v), ctx), 3)
         end
       end
-      c.expected = exp
+      c.expected = copy_list(exp)
     else
       error(string.format("Case: 'expected' must be string or string[], got %s (%s)", type(exp), ctx), 3)
     end
   end
 
-  -- context
-  c.context = raw.context or {}
-  if type(c.context) ~= "table" then
-    error(string.format("Case: 'context' must be table, got %s (%s)", type(c.context), ctx), 3)
+  -- context (defensive copy)
+  local raw_ctx = raw.context or {}
+  if type(raw_ctx) ~= "table" then
+    error(string.format("Case: 'context' must be table, got %s (%s)", type(raw_ctx), ctx), 3)
   end
+  c.context = copy_table(raw_ctx)
 
-  -- tags
-  c.tags = raw.tags or {}
-  if type(c.tags) ~= "table" then
-    error(string.format("Case: 'tags' must be table, got %s (%s)", type(c.tags), ctx), 3)
+  -- tags (defensive copy)
+  local raw_tags = raw.tags or {}
+  if type(raw_tags) ~= "table" then
+    error(string.format("Case: 'tags' must be table, got %s (%s)", type(raw_tags), ctx), 3)
   end
+  c.tags = copy_list(raw_tags)
 
   return freeze(c)
 end

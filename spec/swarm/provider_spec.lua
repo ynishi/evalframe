@@ -131,6 +131,25 @@ describe("sw.provider", function()
       local resp = provider("input")
       assert.equals(42.5, resp.latency_ms)
     end)
+
+    it("does not mutate runner's return table", function()
+      local returned_table
+      local runner = function(_config)
+        returned_table = {
+          text = "", success = true, ticks = 1,
+          termination = "success", actions = {}, metrics = {},
+        }
+        return returned_table
+      end
+
+      local provider = sw.provider(runner, {
+        env = env, actions = actions, swarm = swarm_cfg,
+      })
+
+      provider("input")
+      -- runner's return table should not have latency_ms injected
+      assert.is_nil(returned_table.latency_ms)
+    end)
   end)
 
   -- ============================================================

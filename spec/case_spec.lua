@@ -106,6 +106,27 @@ describe("Case", function()
         c.extra = "nope"
       end, "Case is immutable")
     end)
+
+    it("defensive-copies expected (caller mutation does not affect case)", function()
+      local exp = { "a", "b" }
+      local c = case { input = "q", expected = exp }
+      exp[1] = "CHANGED"
+      assert.equals("a", c.expected[1])
+    end)
+
+    it("defensive-copies tags (caller mutation does not affect case)", function()
+      local tags = { "math" }
+      local c = case { input = "q", tags = tags }
+      tags[1] = "CHANGED"
+      assert.equals("math", c.tags[1])
+    end)
+
+    it("defensive-copies context (caller mutation does not affect case)", function()
+      local ctx = { key = "val" }
+      local c = case { input = "q", context = ctx }
+      ctx.key = "CHANGED"
+      assert.equals("val", c.context.key)
+    end)
   end)
 
   -- ============================================================

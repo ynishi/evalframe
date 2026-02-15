@@ -88,7 +88,7 @@ function M.build(raw)
     termination = raw.termination,
     actions     = raw.actions,
     metrics     = type(raw.metrics) == "table" and raw.metrics or {},
-    latency_ms  = raw.latency_ms,
+    latency_ms  = type(raw.latency_ms) == "number" and raw.latency_ms or nil,
   }
 end
 
@@ -188,7 +188,10 @@ end
 ---@param action_name string
 ---@return boolean
 function M.has_action(trace, action_name)
-  return M.action_count(trace, action_name) > 0
+  for _, a in ipairs(trace.actions) do
+    if a.action == action_name then return true end
+  end
+  return false
 end
 
 -- ============================================================
