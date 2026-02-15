@@ -1,10 +1,22 @@
 --[[
   swarm/actions.lua — Action and ActionSpace declarations
 
+  Action: declares a single action an agent can take.
+  evalframe uses `name` and `description`; domain-specific fields
+  (target, params, etc.) are stored in `context`.
+
+  ActionSpace: validated list of Actions with name-based index.
+
   Usage:
     local sw = require("evalframe.swarm")
 
     local a = sw.action "CheckStatus" { description = "Check service health" }
+    -- a.name        == "CheckStatus"
+    -- a.description == "Check service health"
+    -- a.context     == {}
+
+    local a2 = sw.action "ReadLogs" { description = "Read logs", target = "service" }
+    -- a2.context == { target = "service" }
 
     local space = sw.actions {
       sw.action "CheckStatus" { description = "Check service health" },
@@ -38,11 +50,20 @@ function M.build_action(name)
       error(string.format("sw.action '%s': description must be string, got %s", name, type(spec.description)), 3)
     end
 
-    local action = { _tag = ACTION_TAG, name = name }
+    -- Separate evalframe-managed fields from domain-specific context
+    local context = {}
     for k, v in pairs(spec) do
-      action[k] = v
+      if k ~= "description" then
+        context[k] = v
+      end
     end
-    return action
+
+    return {
+      _tag        = ACTION_TAG,
+      name        = name,
+      description = spec.description,
+      context     = context,
+    }
   end
 end
 

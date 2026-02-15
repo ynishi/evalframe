@@ -58,17 +58,20 @@ function M.vary(dim_name)
       error(string.format("vary '%s': at least 1 entry required", dim_name), 2)
     end
 
-    -- Auto-generate name for entries missing it
+    -- Copy entries with auto-generated names (never mutate caller's tables)
+    local copied = {}
     for i, entry in ipairs(entries) do
-      if not entry.name then
-        entry.name = string.format("%s_%d", dim_name, i)
+      local c = shallow_copy(entry)
+      if not c.name then
+        c.name = string.format("%s_%d", dim_name, i)
       end
+      copied[#copied + 1] = c
     end
 
     return {
       _tag      = VARY_TAG,
       dimension = dim_name,
-      entries   = entries,
+      entries   = copied,
     }
   end
 end

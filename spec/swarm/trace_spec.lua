@@ -100,6 +100,87 @@ describe("sw.trace", function()
         }
       end, "termination must be")
     end)
+
+    it("rejects action record with non-number tick", function()
+      h.assert_error_contains(function()
+        sw.trace {
+          termination = "success",
+          actions = { { tick = "one", worker = "w-0", action = "Act" } },
+        }
+      end, "actions[1].tick must be number")
+    end)
+
+    it("rejects action record with missing worker", function()
+      h.assert_error_contains(function()
+        sw.trace {
+          termination = "success",
+          actions = { { tick = 1, action = "Act" } },
+        }
+      end, "actions[1].worker must be string")
+    end)
+
+    it("rejects action record with missing action name", function()
+      h.assert_error_contains(function()
+        sw.trace {
+          termination = "success",
+          actions = { { tick = 1, worker = "w-0" } },
+        }
+      end, "actions[1].action must be string")
+    end)
+
+    it("rejects non-table action record", function()
+      h.assert_error_contains(function()
+        sw.trace {
+          termination = "success",
+          actions = { "not a table" },
+        }
+      end, "actions[1] must be a table")
+    end)
+
+    it("applies defaults for optional fields", function()
+      local t = sw.trace {
+        termination = "failure",
+        actions     = {},
+      }
+      assert.equals("", t.text)
+      assert.equals(false, t.success)
+      assert.equals(0, t.ticks)
+      assert.same({}, t.metrics)
+    end)
+  end)
+
+  -- ============================================================
+  -- Scalar accessors
+  -- ============================================================
+
+  describe("scalar accessors", function()
+    it("succeeded returns success field", function()
+      local t = sample_trace()
+      assert.is_true(sw.trace_succeeded(t))
+    end)
+
+    it("succeeded returns false for failed trace", function()
+      local t = sw.trace {
+        termination = "failure", actions = {},
+      }
+      assert.is_false(sw.trace_succeeded(t))
+    end)
+
+    it("tick_count returns ticks field", function()
+      local t = sample_trace()
+      assert.equals(15, sw.trace_tick_count(t))
+    end)
+
+    it("trace_metric returns metric value", function()
+      local t = sample_trace()
+      assert.equals(1.0, sw.trace_metric(t, "task_completion"))
+      assert.equals(0.8, sw.trace_metric(t, "coordination"))
+    end)
+
+    it("trace_metric returns nil for missing metric", function()
+      local t = sample_trace()
+      assert.is_nil(sw.trace_metric(t, "nonexistent"))
+    end)
   end)
 
   -- ============================================================

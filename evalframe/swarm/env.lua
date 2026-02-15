@@ -1,6 +1,10 @@
 --[[
   swarm/env.lua — Environment declaration
 
+  Declares the evaluation scenario context.
+  evalframe uses `name` for identification; `context` holds
+  domain-specific data consumed by the runner.
+
   Usage:
     local sw = require("evalframe.swarm")
 
@@ -8,6 +12,8 @@
       scenario = "memory_leak",
       services = { "user-service", "db-service" },
     }
+    -- env.name    == "troubleshooting"
+    -- env.context == { scenario = "memory_leak", services = { ... } }
 ]]
 
 local M = {}
@@ -24,11 +30,11 @@ function M.build(name)
       error(string.format("sw.env '%s': spec must be a table", name), 3)
     end
 
-    local env = { _tag = ENV_TAG, name = name }
-    for k, v in pairs(spec) do
-      env[k] = v
-    end
-    return env
+    return {
+      _tag    = ENV_TAG,
+      name    = name,
+      context = spec,
+    }
   end
 end
 

@@ -10,7 +10,7 @@
     Step 4: Collect results
 
   This module handles single-run execution.
-  Multi-run (for pass@k) is handled by suite.
+  pass@k is computed by stats from the single-run results.
 ]]
 
 local Binding = require("evalframe.model.binding")

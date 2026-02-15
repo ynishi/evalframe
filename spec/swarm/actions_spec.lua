@@ -17,22 +17,27 @@ describe("sw.action / sw.actions", function()
       assert.equals("Check service health", a.description)
     end)
 
-    it("accepts optional target field", function()
+    it("stores non-description fields in context", function()
       local a = sw.action "ReadLogs" {
         description = "Read service logs",
         target = "service",
       }
-      assert.equals("service", a.target)
+      assert.equals("service", a.context.target)
     end)
 
-    it("accepts arbitrary params", function()
+    it("stores arbitrary params in context", function()
       local a = sw.action "Custom" {
         description = "test",
         cost = 5,
         tags = { "debug" },
       }
-      assert.equals(5, a.cost)
-      assert.same({ "debug" }, a.tags)
+      assert.equals(5, a.context.cost)
+      assert.same({ "debug" }, a.context.tags)
+    end)
+
+    it("has empty context when only description provided", function()
+      local a = sw.action "Simple" { description = "simple" }
+      assert.same({}, a.context)
     end)
   end)
 

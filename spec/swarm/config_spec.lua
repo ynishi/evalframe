@@ -27,28 +27,41 @@ describe("sw.swarm", function()
       assert.is_nil(cfg.strategy)
     end)
 
-    it("accepts all optional fields", function()
+    it("accepts all known optional fields", function()
       local cfg = sw.swarm {
-        workers         = 3,
-        managers        = 2,
-        max_ticks       = 20,
-        tick_duration_ms = 10,
-        strategy        = "ucb1",
-        exploration     = true,
+        workers   = 3,
+        managers  = 2,
+        max_ticks = 20,
+        strategy  = "ucb1",
       }
       assert.equals(2, cfg.managers)
-      assert.equals(10, cfg.tick_duration_ms)
       assert.equals("ucb1", cfg.strategy)
-      assert.is_true(cfg.exploration)
+    end)
+  end)
+
+  -- ============================================================
+  -- Strict schema: unknown fields rejected
+  -- ============================================================
+
+  describe("strict schema", function()
+    it("rejects unknown fields", function()
+      h.assert_error_contains(function()
+        sw.swarm {
+          workers   = 1,
+          max_ticks = 5,
+          custom_field = "hello",
+        }
+      end, "unknown field 'custom_field'")
     end)
 
-    it("preserves arbitrary extra params", function()
-      local cfg = sw.swarm {
-        workers   = 1,
-        max_ticks = 5,
-        custom_field = "hello",
-      }
-      assert.equals("hello", cfg.custom_field)
+    it("catches typos in field names", function()
+      h.assert_error_contains(function()
+        sw.swarm {
+          workers   = 3,
+          max_ticks = 20,
+          strategyy = "ucb1",
+        }
+      end, "unknown field 'strategyy'")
     end)
   end)
 
@@ -85,6 +98,24 @@ describe("sw.swarm", function()
       h.assert_error_contains(function()
         sw.swarm { workers = 1, max_ticks = -1 }
       end, "max_ticks must be a positive integer")
+    end)
+
+    it("rejects non-integer workers", function()
+      h.assert_error_contains(function()
+        sw.swarm { workers = 2.5, max_ticks = 10 }
+      end, "workers must be a positive integer")
+    end)
+
+    it("rejects non-string strategy", function()
+      h.assert_error_contains(function()
+        sw.swarm { workers = 1, max_ticks = 10, strategy = 42 }
+      end, "strategy must be string")
+    end)
+
+    it("rejects non-positive managers", function()
+      h.assert_error_contains(function()
+        sw.swarm { workers = 1, max_ticks = 10, managers = 0 }
+      end, "managers must be a positive integer")
     end)
   end)
 end)

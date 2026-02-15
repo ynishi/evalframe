@@ -5,6 +5,7 @@
     check(response, case) → raw_grade
 
   Where `response` is a SwarmTrace.
+  All trace field access goes through trace_mod accessors.
 
   Usage:
     local sw = require("evalframe.swarm")
@@ -26,7 +27,7 @@ local M = {}
 
 M.completed = grader "sw.completed" {
   check = function(resp, _case)
-    return resp.success == true
+    return trace_mod.succeeded(resp)
   end,
 }
 
@@ -49,7 +50,7 @@ function M.efficiency(opts)
 
   return grader "sw.efficiency" {
     check = function(resp, _case)
-      local ticks = resp.ticks or 0
+      local ticks = trace_mod.tick_count(resp)
       if ticks <= opt_t then return 1.0 end
       if ticks >= max_t then return 0.0 end
       return 1.0 - (ticks - opt_t) / (max_t - opt_t)
@@ -82,10 +83,12 @@ function M.action_sequence(sequence)
     error("sw.graders.action_sequence: at least 1 action required", 2)
   end
 
-  return grader "sw.action_sequence" {
+  local name = "sw.action_sequence:" .. table.concat(sequence, ",")
+
+  return grader(name) {
     check = function(resp, _case)
       local seq_idx = 1
-      for _, a in ipairs(resp.actions) do
+      for _, a in ipairs(trace_mod.actions_list(resp)) do
         if a.action == sequence[seq_idx] then
           seq_idx = seq_idx + 1
           if seq_idx > #sequence then return true end
@@ -113,7 +116,7 @@ function M.metric(metric_name, opts)
 
   return grader("sw.metric:" .. metric_name) {
     check = function(resp, _case)
-      local val = resp.metrics and resp.metrics[metric_name]
+      local val = trace_mod.metric(resp, metric_name)
       if val == nil then return false end
       if opts.min ~= nil and val < opts.min then return false end
       if opts.max ~= nil and val > opts.max then return false end
@@ -148,14 +151,7 @@ end
 function M.after_action(action_name, check_fn)
   return grader("sw.after_action:" .. action_name) {
     check = function(resp, _case)
-      -- Find tick of first occurrence
-      local target_tick
-      for _, a in ipairs(resp.actions) do
-        if a.action == action_name then
-          target_tick = a.tick
-          break
-        end
-      end
+      local target_tick = trace_mod.find_first_action(resp, action_name)
       if target_tick == nil then return false end
 
       local snap = trace_mod.at_tick(resp, target_tick)

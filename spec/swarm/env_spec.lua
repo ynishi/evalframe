@@ -8,32 +8,33 @@ describe("sw.env", function()
   -- ============================================================
 
   describe("construction", function()
-    it("creates environment declaration with name and params", function()
+    it("creates environment declaration with name and context", function()
       local env = sw.env "troubleshooting" {
         scenario = "memory_leak",
         services = { "user-service", "db-service" },
       }
       assert.is_true(sw.is_env(env))
       assert.equals("troubleshooting", env.name)
-      assert.equals("memory_leak", env.scenario)
-      assert.same({ "user-service", "db-service" }, env.services)
+      assert.equals("memory_leak", env.context.scenario)
+      assert.same({ "user-service", "db-service" }, env.context.services)
     end)
 
     it("creates with minimal spec (name only)", function()
       local env = sw.env "empty" {}
       assert.is_true(sw.is_env(env))
       assert.equals("empty", env.name)
+      assert.same({}, env.context)
     end)
 
-    it("preserves arbitrary params", function()
+    it("stores all spec fields in context", function()
       local env = sw.env "custom" {
         difficulty = "hard",
         seed = 42,
         nested = { a = 1, b = 2 },
       }
-      assert.equals("hard", env.difficulty)
-      assert.equals(42, env.seed)
-      assert.same({ a = 1, b = 2 }, env.nested)
+      assert.equals("hard", env.context.difficulty)
+      assert.equals(42, env.context.seed)
+      assert.same({ a = 1, b = 2 }, env.context.nested)
     end)
   end)
 

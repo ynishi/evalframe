@@ -309,6 +309,22 @@ describe("variants", function()
       assert.is_nil(base.name)
     end)
 
+    it("does not mutate entry tables when auto-generating names", function()
+      local entries = {
+        { model = "gpt-4" },
+        { model = "claude" },
+      }
+
+      variants.generate {
+        base = {},
+        variants.vary "model" (entries),
+      }
+
+      -- entries should NOT have name fields injected
+      assert.is_nil(entries[1].name)
+      assert.is_nil(entries[2].name)
+    end)
+
     it("variants are independent tables", function()
       local result = variants.generate {
         base = { items = {} },
