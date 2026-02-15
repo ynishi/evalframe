@@ -36,6 +36,20 @@ local VALID_TERMINATIONS = {
 -- Construction
 -- ============================================================
 
+--- Shallow-copy an array table.
+local function copy_list(t)
+  local out = {}
+  for i, v in ipairs(t) do out[i] = v end
+  return out
+end
+
+--- Shallow-copy a hash table.
+local function copy_table(t)
+  local out = {}
+  for k, v in pairs(t) do out[k] = v end
+  return out
+end
+
 --- Validate a single action record.
 local function validate_action_record(a, idx)
   if type(a) ~= "table" then
@@ -79,15 +93,18 @@ function M.build(raw)
     ), 2)
   end
 
-  -- Explicit field enumeration (no passthrough)
+  -- Defensive copy to prevent caller mutation.
+  local copied_actions = copy_list(raw.actions)
+  local copied_metrics = type(raw.metrics) == "table" and copy_table(raw.metrics) or {}
+
   return {
     _tag        = TRACE_TAG,
     text        = type(raw.text) == "string" and raw.text or "",
     success     = raw.success == true,
     ticks       = type(raw.ticks) == "number" and raw.ticks or 0,
     termination = raw.termination,
-    actions     = raw.actions,
-    metrics     = type(raw.metrics) == "table" and raw.metrics or {},
+    actions     = copied_actions,
+    metrics     = copied_metrics,
     latency_ms  = type(raw.latency_ms) == "number" and raw.latency_ms or nil,
   }
 end

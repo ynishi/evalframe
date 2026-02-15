@@ -26,6 +26,15 @@ describe("sw.env", function()
       assert.same({}, env.context)
     end)
 
+    it("defensive-copies context (caller mutation does not affect env)", function()
+      local spec = { scenario = "leak", count = 3 }
+      local env = sw.env "test" (spec)
+      spec.scenario = "CHANGED"
+      spec.injected = true
+      assert.equals("leak", env.context.scenario)
+      assert.is_nil(env.context.injected)
+    end)
+
     it("stores all spec fields in context", function()
       local env = sw.env "custom" {
         difficulty = "hard",

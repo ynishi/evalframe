@@ -50,6 +50,29 @@ describe("sw.trace", function()
       assert.equals(0.8, t.metrics.coordination)
     end)
 
+    it("defensive-copies actions (caller mutation does not affect trace)", function()
+      local acts = {
+        { tick = 1, worker = "w-0", action = "Act", result = "ok" },
+      }
+      local t = sw.trace {
+        termination = "success", actions = acts,
+      }
+      acts[1] = { tick = 99, worker = "w-9", action = "Mutated", result = "bad" }
+      assert.equals("Act", t.actions[1].action)
+      assert.equals(1, #t.actions)
+    end)
+
+    it("defensive-copies metrics (caller mutation does not affect trace)", function()
+      local m = { score = 1.0 }
+      local t = sw.trace {
+        termination = "success", actions = {}, metrics = m,
+      }
+      m.score = 0.0
+      m.injected = true
+      assert.equals(1.0, t.metrics.score)
+      assert.is_nil(t.metrics.injected)
+    end)
+
     it("creates minimal trace", function()
       local t = sw.trace {
         text        = "",

@@ -30,10 +30,14 @@ function M.build(name)
       error(string.format("sw.env '%s': spec must be a table", name), 2)
     end
 
+    -- Defensive copy to prevent caller mutation.
+    local context = {}
+    for k, v in pairs(spec) do context[k] = v end
+
     return {
       _tag    = ENV_TAG,
       name    = name,
-      context = spec,
+      context = context,
     }
   end
 end
