@@ -46,6 +46,9 @@ M.trace_has_action       = trace_mod.has_action
 -- Provider adapter
 M.provider = provider_mod.build
 
+-- Graders
+M.graders = require("evalframe.swarm.graders")
+
 -- Type checks
 M.is_env          = env_mod.is_env
 M.is_action       = actions_mod.is_action
