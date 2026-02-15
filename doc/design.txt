@@ -249,12 +249,116 @@ evalframe Design Document
 
   ──────────────────────────────────────────────────────────────
 
+  Parametric Variants
+
+  variants.generate(spec) produces an array of config tables
+  by combining multiple variation dimensions.
+
+  Two modes:
+    cross — Cartesian product of all dimensions
+    zip   — 1:1 pairing (truncates to shortest dimension)
+
+  Each dimension is declared with vary(name)(entries).
+  A base table provides default values; dimension entries override.
+  Variant names are auto-generated from entry name fields joined
+  with underscore (e.g. "gpt4_cold").
+
+  All operations are non-mutating: base, entries, and caller tables
+  are never modified.
+
+    variants.generate {
+      base = { temperature = 0.7 },
+
+      variants.vary "model" {
+        { model = "gpt-4",  name = "gpt4" },
+        { model = "claude", name = "claude" },
+      },
+
+      variants.vary "temp" {
+        { temperature = 0.0, name = "cold" },
+        { temperature = 1.0, name = "hot" },
+      },
+
+      mode = "cross",  -- 2 × 2 = 4 variants
+    }
+
+  Exposed on ef as:
+    ef.variants = variants.generate
+    ef.vary     = variants.vary
+
+  ──────────────────────────────────────────────────────────────
+
+  Swarm Evaluation
+
+  evalframe.swarm extends evalframe for multi-agent Swarm
+  evaluation. It provides declaration primitives and a grader
+  catalog; the actual tick loop (runner) is user-provided.
+
+  Architecture:
+
+    Env + Actions + SwarmConfig
+        ↓
+    sw.provider(runner, opts)  →  evalframe Provider
+        ↓
+    runner(config) → SwarmTrace  →  Swarm Graders  →  Report
+
+  Declarations:
+
+    sw.env(name)(spec)        Environment (scenario context)
+    sw.action(name)(spec)     Single action declaration
+    sw.actions(list)          Validated ActionSpace (unique names)
+    sw.swarm(spec)            Swarm config (workers, max_ticks, etc.)
+
+  SwarmTrace:
+
+    Extends the evalframe response contract. Constructed via
+    sw.trace(raw). All grader access goes through accessor
+    functions (trace_mod.*), not direct field access.
+
+    Required fields:
+      termination  "success" | "failure" | "timeout"
+      actions      { { tick, worker, action, result?, ... }, ... }
+
+    Optional fields (with defaults):
+      text         string ("")
+      success      boolean (false)
+      ticks        number (0)
+      metrics      table ({})
+      latency_ms   number (nil)
+
+  Provider Adapter:
+
+    sw.provider(runner, { env, actions, swarm })
+    Wraps a user-provided runner function into the evalframe
+    provider contract. The runner receives:
+      config = { input, env, actions, swarm }
+    and returns a raw SwarmTrace table.
+
+    Error handling: runner crash is caught via pcall and
+    returned as { text = "", error = "..." }.
+
+  Swarm Graders:
+
+    sw.graders.completed                          success == true
+    sw.graders.efficiency { max_ticks, optimal? }  linear tick score
+    sw.graders.action_taken(name)                 action occurred
+    sw.graders.action_sequence { ... }            ordered action check
+    sw.graders.metric(name, { min?, max? })       threshold check
+    sw.graders.at_tick(tick, fn)                   snapshot at tick
+    sw.graders.after_action(name, fn)             state after action
+
+  All graders follow the evalframe grader contract:
+    check(response, case) → raw_grade
+
+  ──────────────────────────────────────────────────────────────
+
   File Structure
 
   evalframe/
     evalframe/
       init.lua              Public API (re-export)
       std.lua               Rust-Lua stdlib shim (json/fs/time)
+      variants.lua          Parametric variation generator
       model/
         case.lua            Eval case
         grader.lua          Grading function
@@ -272,6 +376,14 @@ evalframe Design Document
       providers/
         claude_cli.lua      Claude Code CLI provider
         mock.lua            Mock providers for testing
+      swarm/
+        init.lua            Swarm module entry point
+        env.lua             Environment declaration
+        actions.lua         Action / ActionSpace
+        config.lua          Swarm configuration
+        trace.lua           SwarmTrace construction + query helpers
+        provider.lua        Runner → Provider adapter
+        graders.lua         Swarm-specific grader catalog
     spec/                   Tests (busted)
     examples/               Usage examples
     doc/                    Design documentation

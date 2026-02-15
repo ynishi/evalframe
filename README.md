@@ -265,6 +265,132 @@ for _, f in ipairs(report.failures) do
 end
 ```
 
+## Parametric Variants
+
+Run the same suite across multiple configurations with `ef.variants`.
+
+```lua
+local configs = ef.variants {
+  base = { temperature = 0.7 },
+
+  ef.vary "model" {
+    { model = "gpt-4",  name = "gpt4" },
+    { model = "claude", name = "claude" },
+  },
+
+  ef.vary "temp" {
+    { temperature = 0.0, name = "cold" },
+    { temperature = 1.0, name = "hot" },
+  },
+
+  mode = "cross",  -- "cross" (default) or "zip"
+}
+-- → 4 variants: gpt4_cold, gpt4_hot, claude_cold, claude_hot
+
+for _, cfg in ipairs(configs) do
+  local report = ef.suite(cfg.name) {
+    provider = make_provider(cfg),
+    ef.bind { ef.graders.exact_match },
+    cases = my_cases,
+  }:run()
+  print(report:summary())
+end
+```
+
+- **cross** — Cartesian product of all dimensions (2 x 2 = 4)
+- **zip** — 1:1 pairing, truncates to the shortest dimension
+- Base values are overridden by dimension entries
+- Entry `name` fields are joined with `_` to generate variant names
+
+## Swarm Evaluation
+
+`evalframe.swarm` extends evalframe for multi-agent Swarm evaluation.
+
+```lua
+local sw = require("evalframe.swarm")
+
+-- 1. Environment
+local env = sw.env "troubleshooting" {
+  scenario = "memory_leak",
+  services = { "user-service", "db-service" },
+}
+
+-- 2. Action space
+local actions = sw.actions {
+  sw.action "CheckStatus"    { description = "Check service health" },
+  sw.action "ReadLogs"       { description = "Read service logs" },
+  sw.action "RestartService" { description = "Restart a service" },
+}
+
+-- 3. Swarm config
+local swarm_cfg = sw.swarm { workers = 3, max_ticks = 20, strategy = "ucb1" }
+
+-- 4. Runner → Provider adapter
+local provider = sw.provider(my_runner, {
+  env = env, actions = actions, swarm = swarm_cfg,
+})
+
+-- 5. Suite with Swarm graders
+local report = ef.suite "swarm_eval" {
+  provider = provider,
+
+  ef.bind { sw.graders.completed, weight = 0.3 },
+  ef.bind { sw.graders.efficiency { max_ticks = 20, optimal_ticks = 5 }, weight = 0.2 },
+  ef.bind { sw.graders.action_sequence { "CheckStatus", "ReadLogs", "RestartService" } },
+  ef.bind { sw.graders.metric("throughput", { min = 1.0 }) },
+
+  cases = { ef.case { input = "Diagnose the memory leak" } },
+}:run()
+```
+
+### Runner Contract
+
+The runner function receives a config table and returns a SwarmTrace:
+
+```lua
+local function my_runner(config)
+  -- config.input, config.env, config.actions, config.swarm
+  -- ... your tick loop / LLM orchestration here ...
+  return {
+    text        = "Resolved",
+    success     = true,
+    ticks       = 12,
+    termination = "success",  -- "success" | "failure" | "timeout"
+    actions     = {
+      { tick = 1, worker = "w-0", action = "CheckStatus", result = "ok" },
+    },
+    metrics     = { task_completion = 1.0 },
+  }
+end
+```
+
+### Swarm Graders
+
+| Grader | Description |
+|--------|-------------|
+| `sw.graders.completed` | `success == true` |
+| `sw.graders.efficiency { max_ticks, optimal_ticks? }` | Linear score based on tick count |
+| `sw.graders.action_taken(name)` | Action was executed at least once |
+| `sw.graders.action_sequence { ... }` | Actions appeared in order |
+| `sw.graders.metric(name, { min?, max? })` | Metric within threshold |
+| `sw.graders.at_tick(n, fn)` | Check snapshot state at tick n |
+| `sw.graders.after_action(name, fn)` | Check state after first occurrence |
+
+### Trace Helpers
+
+Access trace data through accessors (for use in custom graders):
+
+```lua
+sw.trace_succeeded(resp)              -- bool
+sw.trace_tick_count(resp)             -- number
+sw.trace_metric(resp, "throughput")   -- any | nil
+sw.trace_action_count(resp, "Act")    -- number
+sw.trace_has_action(resp, "Act")      -- bool
+sw.trace_at_tick(resp, 5)             -- { actions, action_count, action_counts }
+sw.trace_actions_by_worker(resp, "w-0")  -- action[]
+sw.trace_find_first_action(resp, "Act")  -- tick number | nil
+```
+
 ## Testing
 
 ```bash
@@ -278,10 +404,19 @@ evalframe/
   evalframe/
     init.lua              Public API
     std.lua               Stdlib shim (json/fs/time)
+    variants.lua          Parametric variation generator
     model/                Core types: Case, Grader, Scorer, Binding
     eval/                 Pipeline: Suite, Runner, Stats, Report
     presets/              Built-in graders, scorers, LLM judges
     providers/            Claude CLI, mock
+    swarm/                Swarm evaluation DSL
+      init.lua            Module entry point
+      env.lua             Environment declaration
+      actions.lua         Action / ActionSpace
+      config.lua          Swarm configuration
+      trace.lua           SwarmTrace construction + query helpers
+      provider.lua        Runner → Provider adapter
+      graders.lua         Swarm-specific grader catalog
   spec/                   Tests (busted)
   examples/               Usage examples
   doc/                    Design documentation
