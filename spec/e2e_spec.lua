@@ -172,6 +172,42 @@ describe("E2E", function()
   end)
 
   -- ============================================================
+  -- Variants: parametric multi-suite execution
+  -- ============================================================
+
+  describe("variants integration", function()
+    it("runs multiple suites from ef.variants", function()
+      local results = {}
+
+      local configs = ef.variants {
+        base = { greeting = "Hello" },
+
+        ef.vary "style" {
+          { greeting = "Hi",    name = "casual" },
+          { greeting = "Hello", name = "formal" },
+        },
+      }
+
+      for _, cfg in ipairs(configs) do
+        local provider = h.static_provider(cfg.greeting)
+
+        local report = ef.suite(cfg.name) {
+          provider = provider,
+          ef.bind { ef.graders.exact_match },
+          cases = {
+            ef.case { input = "greet", expected = cfg.greeting },
+          },
+        }:run()
+
+        results[cfg.name] = report.aggregated.pass_rate
+      end
+
+      assert.equals(1.0, results["casual"])
+      assert.equals(1.0, results["formal"])
+    end)
+  end)
+
+  -- ============================================================
   -- Error handling
   -- ============================================================
 

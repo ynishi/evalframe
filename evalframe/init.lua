@@ -36,6 +36,11 @@ M.grader  = require("evalframe.model.grader")
 M.scorer  = require("evalframe.model.scorer")
 M.bind    = require("evalframe.model.binding")
 
+-- Parametric variations
+local _variants = require("evalframe.variants")
+M.variants = _variants.generate
+M.vary     = _variants.vary
+
 -- Preset catalogs
 M.graders     = require("evalframe.presets.graders")
 M.scorers     = require("evalframe.presets.scorers")
