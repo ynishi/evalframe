@@ -39,9 +39,9 @@ local actions = sw.actions {
 -- ============================================================
 
 local function mock_runner(config)
-  -- In production, this would be:
-  --   return __rustlib.swarm.run(config)
-  -- or a Lua tick loop calling an LLM server.
+  -- In production, replace this with your own runner:
+  -- e.g. a Lua tick loop calling an LLM server,
+  -- or a wrapper around your Swarm execution engine.
 
   local ticks = math.min(12, config.swarm.max_ticks)
 

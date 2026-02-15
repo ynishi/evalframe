@@ -2,8 +2,8 @@
   evalframe.swarm — Swarm evaluation DSL
 
   Provides declarative primitives for Swarm-based evaluation.
-  The actual tick loop (runner) is user-provided — either in Lua
-  or via __rustlib.swarm.
+  The actual tick loop (runner) is user-provided.
+  Implement a runner function that receives config and returns a SwarmTrace.
 
   Usage:
     local sw = require("evalframe.swarm")
