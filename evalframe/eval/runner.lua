@@ -48,11 +48,15 @@ local function normalize_response(raw, elapsed_ms)
     }
   end
 
-  return {
-    text       = type(raw.text) == "string" and raw.text or "",
-    latency_ms = raw.latency_ms or elapsed_ms,
-    error      = raw.error,
-  }
+  -- Preserve all provider fields (enables SwarmTrace passthrough),
+  -- while ensuring required response contract fields are present.
+  local resp = {}
+  for k, v in pairs(raw) do
+    resp[k] = v
+  end
+  resp.text       = type(raw.text) == "string" and raw.text or ""
+  resp.latency_ms = raw.latency_ms or elapsed_ms
+  return resp
 end
 
 -- ============================================================
