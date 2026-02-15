@@ -1,0 +1,334 @@
+evalframe Design Document
+
+  Overview
+
+  evalframe is a Lua DSL for evaluating LLM outputs.
+  Declare "what to evaluate" in Lua; delegate "how to execute" to
+  Rust (mlua) or the CLI.
+
+  Motivation: Writing eval logic in Rust buries the essence under
+  type/enum/match ceremony. Python eval frameworks impose heavy
+  framework-specific abstractions and lock-in. YAML hits an
+  expressiveness ceiling quickly.
+
+  Lua occupies the middle ground between configuration and application
+  code — ideal for domain logic. Tables = config AND code.
+
+  ──────────────────────────────────────────────────────────────
+
+  Architecture
+
+  Pipeline Overview
+
+  evalframe:  Case    → Grader   → Scorer   → Report
+                (data)   (extract)   (normalize)
+
+  A pipeline that maps LLM responses to [0,1] scores.
+
+  Execution Flow
+
+  Case × Provider → Response → Grader → raw_grade → Scorer → [0,1]
+                                  ↑                    ↑
+                              check(resp, case)    score(raw)
+                              → any                → number [0,1]
+
+  Suite orchestrates the entire flow; Stats aggregates the results.
+
+  Separation of Definition and Execution
+
+  Definition (Lua):  Case, Grader, Scorer, Binding, Suite
+  Execution (Rust/CLI): HTTP calls, JSON parsing, concurrency, stats
+
+  std.lua is the boundary for data utilities (json, fs, time).
+  In Prototype mode, it uses Lua standard libraries (lua-cjson, io).
+  In Production mode, Rust injects tables via __rustlib.
+  LLM calls are handled entirely by Providers (no stdlib dependency).
+
+  ──────────────────────────────────────────────────────────────
+
+  Core Entities
+
+  ┌───────────┬──────────────────┬─────────────────────────────┐
+  │ Entity    │ Uniform Signature│ Role                        │
+  ├───────────┼──────────────────┼─────────────────────────────┤
+  │ Case      │ (data)           │ Eval case (immutable)       │
+  │ Grader    │ check(resp,case) │ Extract raw grade           │
+  │           │   → any          │                             │
+  │ Scorer    │ score(raw)       │ Normalize to [0,1]          │
+  │           │   → [0,1]        │                             │
+  │ Binding   │ (pair)           │ Grader × Scorer pair        │
+  │ Suite     │ :run() → Report  │ Orchestrator                │
+  └───────────┴──────────────────┴─────────────────────────────┘
+
+  Case (Schema-validated data)
+
+  A tuple of input, expected output, and metadata. Validated at
+  construction time. A string expected is normalized internally
+  to { string }. Multiple correct answers are supported:
+  expected = { "Tokyo", "東京" }
+
+    case { input = "2+2?", expected = "4" }
+    case "capital" { input = "Capital of Japan?", expected = {"Tokyo", "東京"} }
+
+  Grader (Validated constructor)
+
+  Extracts a "raw grade" from a response.
+  Uniform signature: check(response, case) → raw_grade
+
+  raw_grade is intentionally untyped:
+    bool:   pass/fail (exact_match, contains)
+    number: rating scale (llm_judge 1-5, similarity 0-1)
+    string: extracted text
+
+  Wrapped by safe_check; exceptions become nil + error.
+
+    grader "my_check" {
+      check = function(resp, case)
+        return resp.text:find(case.expected[1], 1, true) ~= nil
+      end
+    }
+
+  Scorer (Validated constructor)
+
+  Normalizes a Grader's raw_grade to [0,1].
+  Uniform signature: score(raw) → number [0,1]
+
+  Four construction modes:
+    score    = function(v) ... end   -- custom
+    min, max                         -- linear interpolation
+    pass     = 0.8                   -- threshold
+    steps    = { ... }               -- step function
+
+    scorer "linear" { min = 1, max = 5 }    -- 1→0.0, 3→0.5, 5→1.0
+    scorer "threshold" { pass = 0.8 }       -- >=0.8→1.0, <0.8→0.0
+
+  Binding (Type-dispatched pair)
+
+  Pairs a Grader with a Scorer via type dispatch.
+  Order-independent: bind { scorer, grader } = bind { grader, scorer }.
+  When Scorer is omitted, a default (bool→0/1) is applied.
+
+  Natural key: grader.name (used for merge/override in settings).
+
+    bind { graders.exact_match }                          -- bool scorer
+    bind { graders.exact_match, scorers.bool }            -- explicit
+    bind { llm_graders.rubric("..."), scorers.linear_1_5 } -- LLM judge
+    bind { graders.contains, weight = 0.7 }               -- weighted
+
+  Suite (Orchestrator)
+
+  Composes Cases + Bindings + Provider into an eval pipeline.
+
+    suite "name" {
+      provider = provider_fn,
+      bind { ... },
+      bind { ... },
+      cases = { case { ... }, case { ... } },
+    }
+
+  :run() → Report. Report contains aggregated stats.
+
+  ──────────────────────────────────────────────────────────────
+
+  Grader Tier Principle (Anthropic 3-layer)
+
+  ┌────────────────────────────────────────────────────────────┐
+  │ Tier 1: Deterministic Graders  ← always prefer            │
+  │   exact_match, contains, starts_with, regex,              │
+  │   json_valid, length, latency, not_empty                  │
+  │                                                           │
+  │ Tier 2: LLM-as-Judge    ← only when deterministic fails   │
+  │   rubric(text), yes_no(question), factuality()            │
+  │                                                           │
+  │ Tier 3: Human           ← for calibration                 │
+  │   (not yet implemented, future extension)                  │
+  └────────────────────────────────────────────────────────────┘
+
+  Prefer Tier 1 when possible.
+  Tier 2 carries cost (API calls) and bias risk.
+
+  ──────────────────────────────────────────────────────────────
+
+  Provider
+
+  A function that calls the LLM under evaluation.
+  Uniform signature: provider(input: string) → response
+
+  response = {
+    text       = "...",       -- LLM output text (required)
+    latency_ms = 1200,        -- (optional) response time
+    model      = "claude",    -- (optional) model name
+    error      = nil,         -- (optional) error string
+    raw        = { ... },     -- (optional) raw provider response for debugging
+  }
+
+  Provider is a core requirement — users must explicitly provide one.
+  No default LLM provider is assumed.
+
+  Built-in Providers:
+
+  claude_cli(opts?)
+    Calls via Claude Code CLI (claude -p). Self-contained.
+    opts = { model?, system?, max_tokens?, cwd? }
+
+      local provider = ef.providers.claude_cli {
+        model  = "haiku",
+        system = "Answer concisely.",
+      }
+
+  mock.static(text)
+    Returns a fixed response. For testing.
+
+  mock.map(mapping)
+    Input→output mapping with partial-match fallback.
+
+  mock.fn(fn)
+    Custom function wrapper.
+
+  mock.recording(responses)
+    Records calls. Cycles through responses.
+
+  Custom Provider:
+
+    local my_provider = function(input)
+      local resp = my_api_call(input)
+      return { text = resp.content, model = "my-model" }
+    end
+
+  ──────────────────────────────────────────────────────────────
+
+  Statistics
+
+  Stats module aggregates runner results.
+
+  describe(values) → { n, mean, std_dev, min, max, median }
+    Descriptive statistics. Sample standard deviation (n-1).
+
+  pass_at_k(n, c, k) → number
+    Probability of at least 1 pass when drawing k from n results
+    containing c successes (without replacement).
+    Formula: 1 - C(n-c, k) / C(n, k)
+
+  ci_95(stats) → lower, upper
+    95% confidence interval. Uses t-distribution critical value
+    table (df 1-120). Normal approximation (1.96) for df > 120.
+
+  aggregate(results) → {
+    total, passed, pass_rate,
+    pass_at_1, pass_at_5, pass_at_10,
+    scores  (describe result),
+    ci_95   { lower, upper },
+    by_tag  { [tag] = { pass, fail, rate, stats } },
+  }
+
+  ──────────────────────────────────────────────────────────────
+
+  Report Output
+
+  summary(agg, opts) → string
+
+    Suite: math_eval
+    Cases: 7  Pass: 6  Fail: 1
+    pass@1: 0.86  pass@5: 1.00
+    Mean: 0.929  StdDev: 0.189  95% CI: [0.754, 1.103]
+
+    By tag:
+      arithmetic           5/5 (1.00)
+      theory               1/2 (0.50)
+
+  failures(results) → CaseResult[]
+    Extracts failed cases only.
+
+  format_result(result) → string
+    Detailed display of a single case. Includes each Grader's
+    score and raw grade.
+
+    [FAIL] prime  score=0.500
+      exact_match: 0.000 (raw=false)
+      contains: 1.000 (raw=true)
+
+  ──────────────────────────────────────────────────────────────
+
+  File Structure
+
+  evalframe/
+    evalframe/
+      init.lua              Public API (re-export)
+      std.lua               Rust-Lua stdlib shim (json/fs/time)
+      model/
+        case.lua            Eval case
+        grader.lua          Grading function
+        scorer.lua          Score normalization
+        binding.lua         Grader × Scorer pair
+      eval/
+        init.lua            Suite orchestrator
+        runner.lua          Pipeline execution
+        stats.lua           Statistics (pass@k, CI)
+        report.lua          Report formatting
+      presets/
+        graders.lua         8 deterministic graders
+        scorers.lua         7 scorers + factories
+        llm_graders.lua     3 LLM-as-Judge graders
+      providers/
+        claude_cli.lua      Claude Code CLI provider
+        mock.lua            Mock providers for testing
+    spec/                   Tests (busted)
+    examples/               Usage examples
+    doc/                    Design documentation
+    .busted                 Test runner config
+
+  ──────────────────────────────────────────────────────────────
+
+  Construction Patterns
+
+  Case — Validated at construction time. Immutable.
+  Type-checked against field definitions. freeze() prevents writes.
+
+  Grader — Validates check function presence at construction.
+  Uniform check signature is the foundation for composition.
+  safe_check wraps with pcall for exception safety.
+
+  Scorer — 4 construction modes (score/linear/threshold/steps).
+  Dispatched via conditional branches in the build function.
+
+  Binding — Type-dispatched pairing.
+  Scans via ipairs, dispatches on _tag. Order-independent.
+
+  Grader.all / Grader.any — Combinators.
+  Compose while preserving the uniform check(resp, case) → any signature.
+
+  Suite — Orchestrator. Application layer.
+
+  ──────────────────────────────────────────────────────────────
+
+  Design Decisions
+
+  Q: Is separating Scorer necessary? If Grader returned [0,1]
+     directly, Binding would be unnecessary.
+
+  A: Separation is justified.
+     - exact_match naturally returns bool. Converting to [0,1]
+       is a separate responsibility.
+     - llm_judge returns 1-5. Whether to normalize with linear_1_5
+       or binarize with threshold depends on the use case.
+     - The same Grader can be combined with different Scorers.
+     Separation of concerns enables reusing the same Grader with
+     different normalization strategies.
+
+  Q: Why is Provider a core requirement instead of built-in?
+
+  A: Provider is the user-supplied adapter that calls the target LLM.
+     System prompt injection, response normalization, and latency
+     measurement are Provider responsibilities.
+     evalframe ships claude_cli and mock as built-in providers,
+     but users can implement any provider as a simple function.
+     std.lua deliberately does not include LLM call logic —
+     keeping I/O concerns out of the stdlib layer.
+
+  Q: Why Lua instead of TOML/YAML?
+
+  A: Some scenarios require conditionals, loops, and function
+     composition. TOML/YAML hit an expressiveness ceiling and
+     break down under complexity.
+     Lua tables = config AND code. Startup takes a few ms.
+     Embedding in Rust via mlua is a well-established pattern.
