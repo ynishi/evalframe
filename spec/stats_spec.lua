@@ -113,6 +113,103 @@ describe("Stats", function()
   end)
 
   -- ============================================================
+  -- ci_95 unbounded mode
+  -- ============================================================
+
+  describe("ci_95 unbounded", function()
+    it("does not clamp to [0,1] when unbounded", function()
+      local lo, hi = stats.ci_95({ n = 5, mean = 10.0, std_dev = 2.0 }, { unbounded = true })
+      assert.is_true(lo < 10.0)
+      assert.is_true(hi > 10.0)
+      assert.is_true(hi > 1.0)  -- would be clamped to 1.0 without unbounded
+    end)
+
+    it("still clamps by default (backward compatible)", function()
+      local _, hi = stats.ci_95({ n = 3, mean = 0.95, std_dev = 0.1 })
+      assert.equals(1.0, hi)
+    end)
+  end)
+
+  -- ============================================================
+  -- describe_with_ci
+  -- ============================================================
+
+  describe("describe_with_ci", function()
+    it("combines describe and ci_95", function()
+      local d = stats.describe_with_ci({ 0.5, 0.6, 0.7, 0.8, 0.9 })
+      assert.equals(5, d.n)
+      assert.equals(0.7, d.mean)
+      assert.is_number(d.ci_lower)
+      assert.is_number(d.ci_upper)
+      assert.is_true(d.ci_lower <= d.mean)
+      assert.is_true(d.ci_upper >= d.mean)
+    end)
+
+    it("passes opts to ci_95", function()
+      local d = stats.describe_with_ci({ 10, 20, 30 }, { unbounded = true })
+      assert.is_true(d.ci_upper > 1.0)  -- not clamped
+    end)
+
+    it("handles empty list", function()
+      local d = stats.describe_with_ci({})
+      assert.equals(0, d.n)
+      assert.equals(0, d.ci_lower)
+      assert.equals(0, d.ci_upper)
+    end)
+  end)
+
+  -- ============================================================
+  -- Welch's t-test
+  -- ============================================================
+
+  describe("welch_t", function()
+    it("detects significant difference", function()
+      local a = stats.describe({ 10, 11, 12, 13, 14 })
+      local b = stats.describe({ 1, 2, 3, 4, 5 })
+      local r = stats.welch_t(a, b)
+
+      assert.is_true(r.significant)
+      assert.equals("a>b", r.direction)
+      assert.is_true(r.t_stat > 0)
+      assert.is_true(r.df > 0)
+    end)
+
+    it("detects no significant difference for similar groups", function()
+      local a = stats.describe({ 5.0, 5.1, 4.9, 5.0, 5.1 })
+      local b = stats.describe({ 5.0, 4.9, 5.1, 5.0, 4.9 })
+      local r = stats.welch_t(a, b)
+
+      assert.is_false(r.significant)
+    end)
+
+    it("reports a<b when B is larger", function()
+      local a = stats.describe({ 1, 2, 3 })
+      local b = stats.describe({ 10, 11, 12 })
+      local r = stats.welch_t(a, b)
+
+      assert.equals("a<b", r.direction)
+    end)
+
+    it("handles equal groups", function()
+      local a = stats.describe({ 5, 5, 5 })
+      local b = stats.describe({ 5, 5, 5 })
+      local r = stats.welch_t(a, b)
+
+      assert.equals("equal", r.direction)
+      assert.is_false(r.significant)
+    end)
+
+    it("handles insufficient data", function()
+      local a = stats.describe({ 5 })
+      local b = stats.describe({ 10 })
+      local r = stats.welch_t(a, b)
+
+      assert.equals("insufficient_data", r.direction)
+      assert.is_false(r.significant)
+    end)
+  end)
+
+  -- ============================================================
   -- Aggregate
   -- ============================================================
 

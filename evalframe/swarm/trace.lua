@@ -1,12 +1,14 @@
 --[[
-  swarm/trace.lua — SwarmTrace construction and query helpers
+  swarm/trace.lua — SwarmTrace construction and validation
 
   SwarmTrace extends the evalframe response contract with Swarm-specific
-  fields (actions, metrics, termination, etc.). The trace is the primary
-  data object that graders inspect post-execution.
+  fields (actions, metrics, termination, etc.).
 
-  All grader access to trace fields should go through the accessor
-  functions in this module, not via direct field access.
+  Graders and analysis functions access trace fields directly:
+    resp.success, resp.ticks, resp.actions, resp.metrics, resp.termination
+
+  The trace structure is validated at construction time by sw.trace(),
+  so downstream consumers can rely on field presence and types.
 
   Usage:
     local sw = require("evalframe.swarm")
@@ -18,8 +20,12 @@
       metrics = { task_completion = 1.0 },
     }
 
-    sw.trace_at_tick(t, 5)
-    sw.trace_actions_by_worker(t, "w-0")
+    -- Direct field access (validated by build):
+    t.success      -- boolean
+    t.ticks        -- number
+    t.actions      -- action records in tick order
+    t.metrics      -- { [name] = value }
+    t.termination  -- "success" | "failure" | "timeout"
 ]]
 
 local M = {}
@@ -111,130 +117,6 @@ end
 
 function M.is_trace(v)
   return type(v) == "table" and v._tag == TRACE_TAG
-end
-
--- ============================================================
--- Scalar accessors (preferred over direct field access)
--- ============================================================
-
----@param trace table  SwarmTrace
----@return boolean
-function M.succeeded(trace)
-  return trace.success == true
-end
-
----@param trace table  SwarmTrace
----@return number
-function M.tick_count(trace)
-  return trace.ticks
-end
-
----@param trace table  SwarmTrace
----@param name string  Metric name
----@return any|nil  Metric value, or nil if not present
-function M.metric(trace, name)
-  return trace.metrics and trace.metrics[name]
-end
-
--- ============================================================
--- at_tick: snapshot of state at a given tick
--- ============================================================
-
---- Return actions and counts up to (inclusive) the given tick.
----@param trace table  SwarmTrace
----@param tick number  Tick number
----@return table { actions, action_count, action_counts }
-function M.at_tick(trace, tick)
-  local filtered = {}
-  local counts = {}
-
-  for _, a in ipairs(trace.actions) do
-    if a.tick <= tick then
-      filtered[#filtered + 1] = a
-      local name = a.action
-      counts[name] = (counts[name] or 0) + 1
-    end
-  end
-
-  return {
-    actions       = filtered,
-    action_count  = #filtered,
-    action_counts = counts,
-  }
-end
-
--- ============================================================
--- actions_by_worker: filter actions for a specific worker
--- ============================================================
-
----@param trace table  SwarmTrace
----@param worker_id string
----@return table[]
-function M.actions_by_worker(trace, worker_id)
-  local filtered = {}
-  for _, a in ipairs(trace.actions) do
-    if a.worker == worker_id then
-      filtered[#filtered + 1] = a
-    end
-  end
-  return filtered
-end
-
--- ============================================================
--- action_count: count occurrences of a named action
--- ============================================================
-
----@param trace table  SwarmTrace
----@param action_name string
----@return number
-function M.action_count(trace, action_name)
-  local count = 0
-  for _, a in ipairs(trace.actions) do
-    if a.action == action_name then
-      count = count + 1
-    end
-  end
-  return count
-end
-
--- ============================================================
--- has_action: check if action was ever taken
--- ============================================================
-
----@param trace table  SwarmTrace
----@param action_name string
----@return boolean
-function M.has_action(trace, action_name)
-  for _, a in ipairs(trace.actions) do
-    if a.action == action_name then return true end
-  end
-  return false
-end
-
--- ============================================================
--- actions_list: raw action records (ordered)
--- ============================================================
-
----@param trace table  SwarmTrace
----@return table[]  Action records in tick order
-function M.actions_list(trace)
-  return trace.actions
-end
-
--- ============================================================
--- find_first_action: tick of first occurrence, or nil
--- ============================================================
-
----@param trace table  SwarmTrace
----@param action_name string
----@return number|nil  Tick number, or nil if action never taken
-function M.find_first_action(trace, action_name)
-  for _, a in ipairs(trace.actions) do
-    if a.action == action_name then
-      return a.tick
-    end
-  end
-  return nil
 end
 
 return M

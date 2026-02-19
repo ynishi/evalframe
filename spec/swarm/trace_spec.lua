@@ -173,133 +173,45 @@ describe("sw.trace", function()
   end)
 
   -- ============================================================
-  -- Scalar accessors
+  -- Direct field access (validated by build)
   -- ============================================================
 
-  describe("scalar accessors", function()
-    it("succeeded returns success field", function()
+  describe("direct field access", function()
+    it("success field is boolean", function()
       local t = sample_trace()
-      assert.is_true(sw.trace_succeeded(t))
+      assert.is_true(t.success)
+
+      local t2 = sw.trace { termination = "failure", actions = {} }
+      assert.is_false(t2.success)
     end)
 
-    it("succeeded returns false for failed trace", function()
-      local t = sw.trace {
-        termination = "failure", actions = {},
-      }
-      assert.is_false(sw.trace_succeeded(t))
+    it("ticks field is number", function()
+      local t = sample_trace()
+      assert.equals(15, t.ticks)
     end)
 
-    it("tick_count returns ticks field", function()
+    it("metrics are accessible by name", function()
       local t = sample_trace()
-      assert.equals(15, sw.trace_tick_count(t))
+      assert.equals(1.0, t.metrics.task_completion)
+      assert.equals(0.8, t.metrics.coordination)
+      assert.is_nil(t.metrics.nonexistent)
     end)
 
-    it("trace_metric returns metric value", function()
+    it("actions are iterable", function()
       local t = sample_trace()
-      assert.equals(1.0, sw.trace_metric(t, "task_completion"))
-      assert.equals(0.8, sw.trace_metric(t, "coordination"))
-    end)
-
-    it("trace_metric returns nil for missing metric", function()
-      local t = sample_trace()
-      assert.is_nil(sw.trace_metric(t, "nonexistent"))
-    end)
-  end)
-
-  -- ============================================================
-  -- at_tick: snapshot at specific tick
-  -- ============================================================
-
-  describe("at_tick", function()
-    it("returns actions up to given tick", function()
-      local t = sample_trace()
-      local snap = sw.trace_at_tick(t, 3)
-      assert.equals(3, #snap.actions)
-      assert.equals("CheckStatus", snap.actions[1].action)
-      assert.equals("AnalyzeMetrics", snap.actions[3].action)
-    end)
-
-    it("returns action_count at tick", function()
-      local t = sample_trace()
-      local snap = sw.trace_at_tick(t, 5)
-      assert.equals(4, snap.action_count)
-    end)
-
-    it("returns empty snapshot for tick 0", function()
-      local t = sample_trace()
-      local snap = sw.trace_at_tick(t, 0)
-      assert.equals(0, #snap.actions)
-      assert.equals(0, snap.action_count)
-    end)
-
-    it("returns all actions for tick >= max", function()
-      local t = sample_trace()
-      local snap = sw.trace_at_tick(t, 100)
-      assert.equals(6, #snap.actions)
-    end)
-
-    it("includes per-action-name counts", function()
-      local t = sample_trace()
-      local snap = sw.trace_at_tick(t, 5)
-      assert.equals(1, snap.action_counts["CheckStatus"])
-      assert.equals(2, snap.action_counts["ReadLogs"])
-      assert.equals(1, snap.action_counts["AnalyzeMetrics"])
-      assert.is_nil(snap.action_counts["RestartService"])  -- tick 8, not yet
-    end)
-  end)
-
-  -- ============================================================
-  -- actions_by_worker
-  -- ============================================================
-
-  describe("actions_by_worker", function()
-    it("filters actions for a specific worker", function()
-      local t = sample_trace()
-      local w0 = sw.trace_actions_by_worker(t, "w-0")
-      assert.equals(3, #w0)
-      for _, a in ipairs(w0) do
-        assert.equals("w-0", a.worker)
+      local count = 0
+      for _, a in ipairs(t.actions) do
+        assert.is_string(a.action)
+        assert.is_string(a.worker)
+        assert.is_number(a.tick)
+        count = count + 1
       end
+      assert.equals(6, count)
     end)
 
-    it("returns empty for unknown worker", function()
+    it("termination is a string", function()
       local t = sample_trace()
-      local wx = sw.trace_actions_by_worker(t, "w-99")
-      assert.equals(0, #wx)
-    end)
-  end)
-
-  -- ============================================================
-  -- action_count
-  -- ============================================================
-
-  describe("action_count", function()
-    it("counts occurrences of named action", function()
-      local t = sample_trace()
-      assert.equals(2, sw.trace_action_count(t, "ReadLogs"))
-      assert.equals(2, sw.trace_action_count(t, "CheckStatus"))
-      assert.equals(1, sw.trace_action_count(t, "RestartService"))
-    end)
-
-    it("returns 0 for unknown action", function()
-      local t = sample_trace()
-      assert.equals(0, sw.trace_action_count(t, "NonExistent"))
-    end)
-  end)
-
-  -- ============================================================
-  -- has_action
-  -- ============================================================
-
-  describe("has_action", function()
-    it("returns true when action exists", function()
-      local t = sample_trace()
-      assert.is_true(sw.trace_has_action(t, "ReadLogs"))
-    end)
-
-    it("returns false when action missing", function()
-      local t = sample_trace()
-      assert.is_false(sw.trace_has_action(t, "NonExistent"))
+      assert.equals("success", t.termination)
     end)
   end)
 end)

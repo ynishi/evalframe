@@ -72,7 +72,7 @@ describe("Swarm E2E", function()
   end
 
   -- ============================================================
-  -- Full pipeline: provider → suite → graders → report
+  -- Full pipeline: provider -> suite -> graders -> report
   -- ============================================================
 
   describe("full pipeline", function()
@@ -99,11 +99,7 @@ describe("Swarm E2E", function()
       }:run()
 
       assert.equals(1, report.aggregated.total)
-      -- completed=true(1.0), efficiency ticks=12 → (20-12)/(20-5)=0.53,
-      -- action_taken=true(1.0), sequence=true(1.0), metric=true(1.0),
-      -- at_tick(5) 4 actions >= 3 → true(1.0)
-      -- All graders pass or return high scores
-      assert.is_true(report.aggregated.pass_rate >= 0)  -- sanity
+      assert.is_true(report.aggregated.pass_rate >= 0)
       assert.is_true(report.results[1].score > 0.5)
     end)
 
@@ -126,13 +122,12 @@ describe("Swarm E2E", function()
 
       assert.equals(1, report.aggregated.total)
       assert.equals(0, report.aggregated.passed)
-      -- completed=false(0.0), efficiency ticks=20 → 0.0, action_taken=false(0.0)
       assert.equals(0.0, report.results[1].score)
     end)
   end)
 
   -- ============================================================
-  -- Variants × Swarm: parametric multi-config evaluation
+  -- Variants x Swarm: parametric multi-config evaluation
   -- ============================================================
 
   describe("variants integration", function()
@@ -178,7 +173,6 @@ describe("Swarm E2E", function()
         reports[cfg.name] = report.aggregated.pass_rate
       end
 
-      -- All should pass (success_runner always succeeds)
       assert.equals(1.0, reports["small_ucb1"])
       assert.equals(1.0, reports["small_greedy"])
       assert.equals(1.0, reports["medium_ucb1"])
@@ -187,50 +181,69 @@ describe("Swarm E2E", function()
   end)
 
   -- ============================================================
-  -- Trace helpers accessible from custom graders
+  -- DSL graders replacing custom graders (no trace helpers needed)
   -- ============================================================
 
-  describe("custom graders with trace helpers", function()
-    it("limits restart count via custom grader", function()
-      local max_restarts = ef.grader "max_restarts" {
-        check = function(resp, _case)
-          local count = sw.trace_action_count(resp, "RestartService")
-          return count <= 2
-        end,
-      }
-
+  describe("DSL graders for common patterns", function()
+    it("limits restart count via action_count grader", function()
       local provider = sw.provider(success_runner, {
         env = env, actions = actions, swarm = swarm_cfg,
       })
 
-      local report = ef.suite "custom_grader_test" {
+      local report = ef.suite "action_count_test" {
         provider = provider,
-        ef.bind { max_restarts },
+        ef.bind { sw.graders.action_count("RestartService", { max = 2 }) },
         cases = { ef.case { input = "test" } },
       }:run()
 
-      -- success_runner has 1 restart, <= 2 → pass
+      -- success_runner has 1 restart, <= 2 -> pass
       assert.equals(1, report.aggregated.passed)
     end)
 
-    it("checks worker load balance via custom grader", function()
-      local load_balance = ef.grader "load_balance" {
-        check = function(resp, _case)
-          local w0 = sw.trace_actions_by_worker(resp, "w-0")
-          local w1 = sw.trace_actions_by_worker(resp, "w-1")
-          local w2 = sw.trace_actions_by_worker(resp, "w-2")
-          -- All workers contributed
-          return #w0 > 0 and #w1 > 0 and #w2 > 0
-        end,
-      }
-
+    it("checks all workers active via DSL grader", function()
       local provider = sw.provider(success_runner, {
         env = env, actions = actions, swarm = swarm_cfg,
       })
 
-      local report = ef.suite "load_balance_test" {
+      local report = ef.suite "all_workers_test" {
         provider = provider,
-        ef.bind { load_balance },
+        ef.bind { sw.graders.all_workers_active() },
+        cases = { ef.case { input = "test" } },
+      }:run()
+
+      assert.equals(1, report.aggregated.passed)
+    end)
+
+    it("all_workers_active fails for single-worker trace", function()
+      local provider = sw.provider(timeout_runner, {
+        env = env, actions = actions, swarm = swarm_cfg,
+      })
+
+      local report = ef.suite "single_worker_test" {
+        provider = provider,
+        ef.bind { sw.graders.all_workers_active() },
+        cases = { ef.case { input = "test" } },
+      }:run()
+
+      -- timeout_runner only uses w-0
+      assert.equals(0, report.aggregated.passed)
+    end)
+
+    it("custom graders access trace fields directly", function()
+      local provider = sw.provider(success_runner, {
+        env = env, actions = actions, swarm = swarm_cfg,
+      })
+
+      -- Direct field access in custom grader (no accessor helpers needed)
+      local custom = ef.grader "direct_field" {
+        check = function(resp, _case)
+          return resp.success == true and resp.ticks < 15
+        end,
+      }
+
+      local report = ef.suite "direct_field_test" {
+        provider = provider,
+        ef.bind { custom },
         cases = { ef.case { input = "test" } },
       }:run()
 

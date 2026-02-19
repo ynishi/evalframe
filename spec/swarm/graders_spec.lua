@@ -180,6 +180,93 @@ describe("sw.graders", function()
   end)
 
   -- ============================================================
+  -- action_count: threshold-based action count
+  -- ============================================================
+
+  describe("action_count", function()
+    it("passes when count within max", function()
+      local g = sw.graders.action_count("RestartService", { max = 2 })
+      local grade = check(g, success_trace())
+      assert.is_true(grade)  -- 1 restart <= 2
+    end)
+
+    it("fails when count exceeds max", function()
+      local g = sw.graders.action_count("CheckStatus", { max = 1 })
+      local grade = check(g, success_trace())
+      assert.is_false(grade)  -- 2 CheckStatus > 1
+    end)
+
+    it("passes when count meets min", function()
+      local g = sw.graders.action_count("ReadLogs", { min = 1 })
+      local grade = check(g, success_trace())
+      assert.is_true(grade)
+    end)
+
+    it("fails when count below min", function()
+      local g = sw.graders.action_count("RestartService", { min = 3 })
+      local grade = check(g, success_trace())
+      assert.is_false(grade)  -- 1 restart < 3
+    end)
+
+    it("supports min and max together", function()
+      local g = sw.graders.action_count("CheckStatus", { min = 1, max = 5 })
+      local grade = check(g, success_trace())
+      assert.is_true(grade)  -- 2 CheckStatus in [1,5]
+    end)
+
+    it("returns true for zero count when max >= 0", function()
+      local g = sw.graders.action_count("NonExistent", { max = 5 })
+      local grade = check(g, success_trace())
+      assert.is_true(grade)  -- 0 <= 5
+    end)
+
+    it("rejects missing thresholds", function()
+      h.assert_error_contains(function()
+        sw.graders.action_count("X", {})
+      end, "min or max is required")
+    end)
+  end)
+
+  -- ============================================================
+  -- all_workers_active: distinct worker participation check
+  -- ============================================================
+
+  describe("all_workers_active", function()
+    it("passes when multiple workers contribute (default >= 2)", function()
+      local g = sw.graders.all_workers_active()
+      local grade = check(g, success_trace())
+      assert.is_true(grade)  -- w-0 and w-1 both active
+    end)
+
+    it("fails for single-worker trace (default >= 2)", function()
+      local g = sw.graders.all_workers_active()
+      local grade = check(g, failure_trace())
+      assert.is_false(grade)  -- only w-0
+    end)
+
+    it("fails for empty actions", function()
+      local g = sw.graders.all_workers_active()
+      local t = sw.trace {
+        termination = "failure", actions = {},
+      }
+      local grade = check(g, t)
+      assert.is_false(grade)
+    end)
+
+    it("passes when worker count meets explicit threshold", function()
+      local g = sw.graders.all_workers_active { workers = 2 }
+      local grade = check(g, success_trace())
+      assert.is_true(grade)  -- w-0 and w-1
+    end)
+
+    it("fails when worker count below explicit threshold", function()
+      local g = sw.graders.all_workers_active { workers = 3 }
+      local grade = check(g, success_trace())
+      assert.is_false(grade)  -- only w-0 and w-1 (2 < 3)
+    end)
+  end)
+
+  -- ============================================================
   -- metric: threshold-based metric check
   -- ============================================================
 

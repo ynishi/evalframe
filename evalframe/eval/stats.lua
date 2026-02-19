@@ -120,18 +120,94 @@ local function t_critical(df)
 end
 
 --- Compute 95% confidence interval for the mean.
----@param stats table {n, mean, std_dev}
+---@param d table {n, mean, std_dev}
+---@param opts table|nil  { unbounded = true } to skip [0,1] clamping
 ---@return number lower, number upper
-function M.ci_95(stats)
-  if stats.n < 2 then
-    return stats.mean, stats.mean
+function M.ci_95(d, opts)
+  if d.n < 2 then
+    return d.mean, d.mean
   end
-  local t = t_critical(stats.n - 1)
-  local margin = t * stats.std_dev / math.sqrt(stats.n)
-  -- Clamp to [0, 1] since scores are bounded
-  local lower = math.max(0.0, stats.mean - margin)
-  local upper = math.min(1.0, stats.mean + margin)
+  local t = t_critical(d.n - 1)
+  local margin = t * d.std_dev / math.sqrt(d.n)
+  local lower = d.mean - margin
+  local upper = d.mean + margin
+
+  -- Clamp to [0, 1] unless unbounded (e.g. tick counts, latency)
+  if not (opts and opts.unbounded) then
+    lower = math.max(0.0, lower)
+    upper = math.min(1.0, upper)
+  end
+
   return lower, upper
+end
+
+-- ============================================================
+-- describe_with_ci: convenience wrapper
+-- ============================================================
+
+--- Compute descriptive statistics with 95% CI in a single call.
+---@param values number[]
+---@param opts table|nil  Passed to ci_95 (e.g. { unbounded = true })
+---@return table  describe() result + ci_lower, ci_upper
+function M.describe_with_ci(values, opts)
+  local d = M.describe(values)
+  local ci_lower, ci_upper = M.ci_95(d, opts)
+  d.ci_lower = ci_lower
+  d.ci_upper = ci_upper
+  return d
+end
+
+-- ============================================================
+-- Welch's t-test (two-sample, unequal variance)
+-- ============================================================
+
+--- Approximate degrees of freedom for Welch's t-test.
+local function welch_df(sa2_na, sb2_nb, na, nb)
+  local num = (sa2_na + sb2_nb) ^ 2
+  local denom = (sa2_na ^ 2) / (na - 1) + (sb2_nb ^ 2) / (nb - 1)
+  if denom == 0 then return 1 end
+  return num / denom
+end
+
+--- Welch's two-sample t-test for comparing two groups.
+--- Accepts two describe() outputs.
+---@param a table  describe() result for group A
+---@param b table  describe() result for group B
+---@return table  { t_stat, df, significant, direction }
+function M.welch_t(a, b)
+  if a.n < 2 or b.n < 2 then
+    return { t_stat = 0, df = 0, significant = false, direction = "insufficient_data" }
+  end
+
+  local sa2 = a.std_dev ^ 2
+  local sb2 = b.std_dev ^ 2
+  local sa2_na = sa2 / a.n
+  local sb2_nb = sb2 / b.n
+
+  local se = math.sqrt(sa2_na + sb2_nb)
+  if se == 0 then
+    return { t_stat = 0, df = a.n + b.n - 2, significant = false, direction = "equal" }
+  end
+
+  local t_stat = (a.mean - b.mean) / se
+  local df = welch_df(sa2_na, sb2_nb, a.n, b.n)
+  local t_crit = t_critical(math.floor(df))
+
+  local direction
+  if math.abs(t_stat) < 0.001 then
+    direction = "equal"
+  elseif t_stat > 0 then
+    direction = "a>b"
+  else
+    direction = "a<b"
+  end
+
+  return {
+    t_stat      = t_stat,
+    df          = df,
+    significant = math.abs(t_stat) > t_crit,
+    direction   = direction,
+  }
 end
 
 -- ============================================================

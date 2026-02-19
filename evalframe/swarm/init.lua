@@ -22,41 +22,31 @@
     })
 ]]
 
-local env_mod     = require("evalframe.swarm.env")
-local actions_mod = require("evalframe.swarm.actions")
-local config_mod  = require("evalframe.swarm.config")
-local trace_mod   = require("evalframe.swarm.trace")
+local env_mod      = require("evalframe.swarm.env")
+local actions_mod  = require("evalframe.swarm.actions")
+local config_mod   = require("evalframe.swarm.config")
+local trace_mod    = require("evalframe.swarm.trace")
 local provider_mod = require("evalframe.swarm.provider")
 
 local M = {}
 
 -- Declarations
-M.env    = env_mod.build
-M.action = actions_mod.build_action
+M.env     = env_mod.build
+M.action  = actions_mod.build_action
 M.actions = actions_mod.build_action_space
-M.swarm  = config_mod.build
+M.swarm   = config_mod.build
 
 -- Trace construction
-M.trace                   = trace_mod.build
-
--- Trace scalar accessors
-M.trace_succeeded         = trace_mod.succeeded
-M.trace_tick_count        = trace_mod.tick_count
-M.trace_metric            = trace_mod.metric
-
--- Trace query helpers
-M.trace_at_tick           = trace_mod.at_tick
-M.trace_actions_by_worker = trace_mod.actions_by_worker
-M.trace_action_count      = trace_mod.action_count
-M.trace_has_action        = trace_mod.has_action
-M.trace_actions_list      = trace_mod.actions_list
-M.trace_find_first_action = trace_mod.find_first_action
+M.trace = trace_mod.build
 
 -- Provider adapter
 M.provider = provider_mod.build
 
--- Graders
+-- Graders (DSL layer — the primary API for trace evaluation)
 M.graders = require("evalframe.swarm.graders")
+
+-- Analysis (multi-trace aggregate)
+M.analysis = require("evalframe.swarm.analysis")
 
 -- Type checks
 M.is_env          = env_mod.is_env
