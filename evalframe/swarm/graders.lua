@@ -79,7 +79,7 @@ function M.efficiency(opts)
     error("sw.graders.efficiency: optimal_ticks must be less than max_ticks", 2)
   end
 
-  return grader "sw.efficiency" {
+  return grader(string.format("sw.efficiency(max=%d,opt=%d)", max_t, opt_t)) {
     check = function(resp, _case)
       local ticks = resp.ticks
       if ticks <= opt_t then return 1.0 end
@@ -174,7 +174,7 @@ end
 function M.all_workers_active(opts)
   local min_workers = (opts and opts.workers) or 2
 
-  return grader "sw.all_workers_active" {
+  return grader(string.format("sw.all_workers_active(min=%d)", min_workers)) {
     check = function(resp, _case)
       if #resp.actions == 0 then return false end
 

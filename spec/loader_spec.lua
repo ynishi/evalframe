@@ -59,11 +59,9 @@ describe("Loader", function()
     end)
 
     it("errors on file returning non-table", function()
-      -- Create an inline test: we can't easily write temp files,
-      -- so test via the module's behavior with a known-bad fixture
       h.assert_error_contains(function()
-        loader.load_file("spec/fixtures/malicious_cases.lua")
-      end, "error")
+        loader.load_file("spec/fixtures/returns_string.lua")
+      end, "must return a table")
     end)
   end)
 end)

@@ -266,6 +266,10 @@ function M.aggregate(results)
     total      = n,
     passed     = passed,
     pass_rate  = passed / n,
+    -- Note: pass@k is applied across heterogeneous cases here, not
+    -- repeated trials on the same input. Interpretation differs from
+    -- OpenAI's pass@k benchmark (which assumes k independent samples
+    -- of one prompt). For cross-case aggregation, pass@1 == pass_rate.
     pass_at_1  = M.pass_at_k(n, passed, 1),
     pass_at_5  = n >= 5 and M.pass_at_k(n, passed, 5) or nil,
     pass_at_10 = n >= 10 and M.pass_at_k(n, passed, 10) or nil,

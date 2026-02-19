@@ -5,14 +5,23 @@
   Demonstrates the evalframe.swarm DSL for evaluating multi-agent
   Swarm systems. Uses a mock runner (no real LLM required).
 
+  Covers:
+    - Environment, action space, swarm config
+    - Parametric variants (cross product)
+    - Suite execution per variant
+    - Variant comparison via Welch's t-test
+    - Trace analysis helpers
+
   Run:
     lua examples/swarm_eval.lua
 ]]
 
 package.path = "?.lua;?/init.lua;" .. package.path
 
-local ef = require("evalframe")
-local sw = require("evalframe.swarm")
+local ef       = require("evalframe")
+local sw       = require("evalframe.swarm")
+local stats    = require("evalframe.eval.stats")
+local analysis = sw.analysis
 
 -- ============================================================
 -- 1. Environment declaration
@@ -102,10 +111,13 @@ local cases = {
 }
 
 -- ============================================================
--- 6. Run each variant
+-- 6. Run each variant, collect scores and traces
 -- ============================================================
 
 print("=== Swarm Evaluation ===\n")
+
+local variant_scores = {}   -- { name = { score, score, ... } }
+local variant_traces = {}   -- { name = { trace, trace, ... } }
 
 for _, cfg in ipairs(configs) do
   local swarm_cfg = sw.swarm {
@@ -137,4 +149,85 @@ for _, cfg in ipairs(configs) do
 
   print(report:summary())
   print("")
+
+  -- Collect scores for cross-variant comparison
+  local scores = {}
+  for _, r in ipairs(report.results) do
+    scores[#scores + 1] = r.score
+  end
+  variant_scores[cfg.name] = scores
+
+  -- Collect traces for analysis
+  local traces = {}
+  for _, r in ipairs(report.results) do
+    traces[#traces + 1] = r.response
+  end
+  variant_traces[cfg.name] = traces
+end
+
+-- ============================================================
+-- 7. Variant comparison via Welch's t-test
+-- ============================================================
+
+print("=== Variant Comparison (Welch's t-test) ===\n")
+
+local names = {}
+for _, cfg in ipairs(configs) do names[#names + 1] = cfg.name end
+
+for i = 1, #names do
+  for j = i + 1, #names do
+    local a_name, b_name = names[i], names[j]
+    local a = stats.describe(variant_scores[a_name])
+    local b = stats.describe(variant_scores[b_name])
+    local r = stats.welch_t(a, b)
+    print(string.format(
+      "  %s (mean=%.3f) vs %s (mean=%.3f): %s %s",
+      a_name, a.mean, b_name, b.mean,
+      r.significant and "SIGNIFICANT" or "not significant",
+      r.direction ~= "equal" and ("(" .. r.direction .. ")") or ""
+    ))
+  end
+end
+print("")
+
+-- ============================================================
+-- 8. Trace analysis helpers
+-- ============================================================
+
+print("=== Trace Analysis ===\n")
+
+for _, cfg in ipairs(configs) do
+  local traces = variant_traces[cfg.name]
+  if #traces > 0 then
+    print(string.format("--- %s ---", cfg.name))
+
+    -- Convergence: tick count distribution
+    local conv = analysis.convergence(traces)
+    print(string.format("  Convergence: mean=%.1f ticks, std=%.1f", conv.mean, conv.std_dev))
+
+    -- Action sequence frequency (bigrams)
+    local freq = analysis.action_sequences(traces, 2)
+    print("  Action bigrams:")
+    for seq, data in pairs(freq) do
+      print(string.format("    %s: count=%d, success_rate=%.0f%%", seq, data.count, data.rate * 100))
+    end
+
+    -- Per-trace analysis on first trace
+    local t = traces[1]
+    local eff = analysis.exploration_efficiency(t)
+    print(string.format("  Exploration: %d actions, %d unique (%.0f%% unique)",
+      eff.total, eff.unique, eff.unique_ratio * 100))
+
+    local coord = analysis.worker_coordination(t)
+    print(string.format("  Workers: %d, action overlap=%.0f%%",
+      coord.worker_count, coord.overlap_rate * 100))
+
+    local qual = analysis.action_validity(t, function(a)
+      return a.result ~= nil and a.result ~= "error"
+    end)
+    print(string.format("  Action validity: %d/%d (%.0f%%)",
+      qual.valid, qual.total, qual.rate * 100))
+
+    print("")
+  end
 end

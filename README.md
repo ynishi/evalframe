@@ -192,7 +192,7 @@ ef.scorer "log_scale" {
 ef.bind { ef.graders.exact_match }
 
 -- Grader + Scorer
-ef.bind { ef.graders.length, ef.scorers.inverse("len", 500) }
+ef.bind { ef.graders.length, ef.scorers.inverse_linear }
 
 -- Weighted (default weight = 1.0)
 ef.bind { ef.graders.exact_match, weight = 0.7 }
@@ -373,22 +373,60 @@ end
 | `sw.graders.action_taken(name)` | Action was executed at least once |
 | `sw.graders.action_sequence { ... }` | Actions appeared in order |
 | `sw.graders.metric(name, { min?, max? })` | Metric within threshold |
+| `sw.graders.action_count(name, { min?, max? })` | Action count within threshold |
+| `sw.graders.all_workers_active { workers? }` | Minimum distinct worker participation |
 | `sw.graders.at_tick(n, fn)` | Check snapshot state at tick n |
 | `sw.graders.after_action(name, fn)` | Check state after first occurrence |
 
-### Trace Helpers
+### Direct Field Access
 
-Access trace data through accessors (for use in custom graders):
+SwarmTrace fields are validated at construction time. Custom graders access them directly:
 
 ```lua
-sw.trace_succeeded(resp)              -- bool
-sw.trace_tick_count(resp)             -- number
-sw.trace_metric(resp, "throughput")   -- any | nil
-sw.trace_action_count(resp, "Act")    -- number
-sw.trace_has_action(resp, "Act")      -- bool
-sw.trace_at_tick(resp, 5)             -- { actions, action_count, action_counts }
-sw.trace_actions_by_worker(resp, "w-0")  -- action[]
-sw.trace_find_first_action(resp, "Act")  -- tick number | nil
+local custom = ef.grader "my_check" {
+  check = function(resp, _case)
+    return resp.success == true and resp.ticks < 15
+  end,
+}
+
+-- Available fields:
+-- resp.success      boolean
+-- resp.ticks        number
+-- resp.termination  "success" | "failure" | "timeout"
+-- resp.actions      { { tick, worker, action, result?, ... }, ... }
+-- resp.metrics      { [name] = value }
+-- resp.text         string
+-- resp.latency_ms   number | nil
+```
+
+### Analysis Helpers
+
+`sw.analysis` provides aggregate analysis across multiple traces:
+
+```lua
+local analysis = sw.analysis
+
+-- Action sequence frequency (n-gram, per-trace deduplicated)
+local freq = analysis.action_sequences(traces, 2)
+-- { ["Check,Read"] = { count = 5, success = 3, rate = 0.6 }, ... }
+
+-- Convergence: tick count distribution across traces
+local conv = analysis.convergence(traces)
+-- conv.mean, conv.std_dev, conv.ci_lower, conv.ci_upper
+
+-- Exploration efficiency (per trace)
+local eff = analysis.exploration_efficiency(trace)
+-- { total = 15, unique = 8, unique_ratio = 0.53, duplicate_rate = 0.47 }
+
+-- Multi-worker coordination (per trace)
+local coord = analysis.worker_coordination(trace)
+-- { worker_count = 3, overlap_rate = 0.2, workers = { ... } }
+
+-- Action validity with user-defined predicate
+local qual = analysis.action_validity(trace, function(a)
+  return a.result ~= "parse_error"
+end)
+-- { total = 20, valid = 18, rate = 0.9 }
 ```
 
 ## Testing
@@ -414,7 +452,8 @@ evalframe/
       env.lua             Environment declaration
       actions.lua         Action / ActionSpace
       config.lua          Swarm configuration
-      trace.lua           SwarmTrace construction + query helpers
+      trace.lua           SwarmTrace construction + validation
+      analysis.lua        Multi-trace aggregate analysis
       provider.lua        Runner → Provider adapter
       graders.lua         Swarm-specific grader catalog
   spec/                   Tests (busted)

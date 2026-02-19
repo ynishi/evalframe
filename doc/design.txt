@@ -312,8 +312,9 @@ evalframe Design Document
   SwarmTrace:
 
     Extends the evalframe response contract. Constructed via
-    sw.trace(raw). All grader access goes through accessor
-    functions (trace_mod.*), not direct field access.
+    sw.trace(raw). Fields are validated at construction time;
+    graders and analysis functions access fields directly
+    (resp.success, resp.ticks, resp.actions, resp.metrics).
 
     Required fields:
       termination  "success" | "failure" | "timeout"
@@ -339,13 +340,15 @@ evalframe Design Document
 
   Swarm Graders:
 
-    sw.graders.completed                          success == true
-    sw.graders.efficiency { max_ticks, optimal? }  linear tick score
-    sw.graders.action_taken(name)                 action occurred
-    sw.graders.action_sequence { ... }            ordered action check
-    sw.graders.metric(name, { min?, max? })       threshold check
-    sw.graders.at_tick(tick, fn)                   snapshot at tick
-    sw.graders.after_action(name, fn)             state after action
+    sw.graders.completed                            success == true
+    sw.graders.efficiency { max_ticks, optimal? }    linear tick score
+    sw.graders.action_taken(name)                   action occurred
+    sw.graders.action_sequence { ... }              ordered action check
+    sw.graders.action_count(name, { min?, max? })   action count threshold
+    sw.graders.all_workers_active { workers? }      min distinct workers
+    sw.graders.metric(name, { min?, max? })         metric threshold
+    sw.graders.at_tick(tick, fn)                     snapshot at tick
+    sw.graders.after_action(name, fn)               state after action
 
   All graders follow the evalframe grader contract:
     check(response, case) → raw_grade
@@ -381,9 +384,10 @@ evalframe Design Document
         env.lua             Environment declaration
         actions.lua         Action / ActionSpace
         config.lua          Swarm configuration
-        trace.lua           SwarmTrace construction + query helpers
+        trace.lua           SwarmTrace construction + validation
         provider.lua        Runner → Provider adapter
         graders.lua         Swarm-specific grader catalog
+        analysis.lua        Multi-trace aggregate analysis
     spec/                   Tests (busted)
     examples/               Usage examples
     doc/                    Design documentation

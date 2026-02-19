@@ -44,6 +44,9 @@ local M = {}
 ---@return table  { [key] = { count, success, rate } }
 function M.action_sequences(traces, ngram_size)
   ngram_size = ngram_size or 3
+  if ngram_size < 1 then
+    error("analysis.action_sequences: ngram_size must be >= 1", 2)
+  end
   local sequences = {}
 
   for _, trace in ipairs(traces) do

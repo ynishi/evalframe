@@ -105,6 +105,30 @@ describe("Grader", function()
         local val = graders.regex.check({ text = "no numbers" }, rc)
         assert.is_false(val)
       end)
+
+      it("falls back to expected[1] as pattern", function()
+        local rc = case { input = "q", expected = "%d+" }
+        local val = graders.regex.check({ text = "answer is 42" }, rc)
+        assert.is_true(val)
+      end)
+
+      it("context.pattern takes precedence over expected[1]", function()
+        local rc = case { input = "q", expected = "NOMATCH", context = { pattern = "%d+" } }
+        local val = graders.regex.check({ text = "answer is 42" }, rc)
+        assert.is_true(val)  -- context.pattern wins, not expected[1]
+      end)
+    end)
+
+    describe("latency", function()
+      it("returns latency_ms when present", function()
+        local val = graders.latency.check({ text = "ok", latency_ms = 150 }, c)
+        assert.equals(150, val)
+      end)
+
+      it("returns nil when latency_ms is missing", function()
+        local val = graders.latency.check({ text = "ok" }, c)
+        assert.is_nil(val)
+      end)
     end)
   end)
 

@@ -1,5 +1,6 @@
 local sw       = require("evalframe.swarm")
 local analysis = sw.analysis
+local h        = require("spec.spec_helper")
 
 describe("sw.analysis", function()
 
@@ -87,6 +88,12 @@ describe("sw.analysis", function()
       }}
       local freq = analysis.action_sequences(short, 3)
       assert.same({}, freq)
+    end)
+
+    it("rejects ngram_size < 1", function()
+      h.assert_error_contains(function()
+        analysis.action_sequences({}, 0)
+      end, "ngram_size must be >= 1")
     end)
 
     it("deduplicates n-grams within the same trace", function()

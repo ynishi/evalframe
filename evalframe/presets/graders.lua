@@ -107,7 +107,7 @@ M.length = grader "length" {
 
 M.latency = grader "latency" {
   check = function(resp, _case)
-    return resp.latency_ms or 0
+    return resp.latency_ms  -- nil when missing (scorer handles nil → 0)
   end,
 
 }
