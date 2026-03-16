@@ -52,6 +52,12 @@ M.providers = {
   mock       = require("evalframe.providers.mock"),
 }
 
+-- Conditional: algocline provider (only when running inside algocline VM)
+if type(alc) == "table" and type(alc.llm) == "function" then
+  local ok, mod = pcall(require, "evalframe.providers.algocline")
+  if ok then M.providers.algocline = mod end
+end
+
 -- Stdlib (json, fs, time)
 M.std = require("evalframe.std")
 

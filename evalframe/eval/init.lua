@@ -113,19 +113,48 @@ function Suite:run()
 
   local results = runner.run(self.bindings, self.cases, self.provider)
   local agg = stats.aggregate(results)
+  local suite_name = self.name  -- capture for closures below
 
-  return {
-    name       = self.name,
+  local r = {
+    name       = suite_name,
     results    = results,
     aggregated = agg,
     failures   = report.failures(results),
 
-    summary = function(_self)
-      return report.summary(agg, { name = self.name })
+    summary = function()
+      return report.summary(agg, { name = suite_name })
     end,
 
     format_result = report.format_result,
   }
+
+  --- Return a serialization-safe copy (no functions, no cycles).
+  --- Includes summary text and strips response.raw to avoid bloat.
+  function r:to_table()
+    local function strip(t, seen)
+      if type(t) ~= "table" then return t end
+      seen = seen or {}
+      if seen[t] then return nil end
+      seen[t] = true
+      local out = {}
+      for k, v in pairs(t) do
+        if type(v) ~= "function" then
+          out[k] = strip(v, seen)
+        end
+      end
+      return out
+    end
+
+    return {
+      name       = self.name,
+      aggregated = strip(self.aggregated),
+      failures   = strip(self.failures),
+      results    = strip(self.results),
+      summary    = self:summary(),
+    }
+  end
+
+  return r
 end
 
 return M
