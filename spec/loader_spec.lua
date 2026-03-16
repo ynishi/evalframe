@@ -55,7 +55,7 @@ describe("Loader", function()
     it("errors on non-existent file", function()
       h.assert_error_contains(function()
         loader.load_file("spec/fixtures/nonexistent.lua")
-      end, "std.fs.read_file")
+      end, "nonexistent.lua")
     end)
 
     it("errors on file returning non-table", function()

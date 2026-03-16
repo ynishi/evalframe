@@ -1,6 +1,6 @@
 [package]
 name = "evalframe"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Standalone eval framework for LLM outputs — Lua DSL with Rust host"
 license = "MIT"
@@ -15,4 +15,7 @@ name = "evalframe"
 path = "src/main.rs"
 
 [dependencies]
-senl = { version = "0.3.1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+mlua = { version = "0.11", features = ["lua54", "vendored"] }
+mlua-batteries = { version = "0.2.1", features = ["json", "fs", "time", "http"] }
+mlua-pkg = "0.2.1"
