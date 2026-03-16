@@ -125,6 +125,7 @@ describe("std", function()
       local now_fn = function() return 99999.0 end
       local mock = {
         json = { decode = tostring, encode = tostring },
+        fs = { read = tostring, is_file = tostring },
         time = { now = now_fn },
       }
       local s = reload_std_with_batteries(mock)
@@ -135,6 +136,7 @@ describe("std", function()
       local mock_json = { decode = function() return "X" end, encode = tostring }
       local mock = {
         json = mock_json,
+        fs = { read = tostring, is_file = tostring },
         time = { now = function() return 0 end },
       }
       local s = reload_std_with_batteries(mock)
@@ -145,6 +147,7 @@ describe("std", function()
       local mock_http = { get = function() return "resp" end }
       local mock = {
         json = { decode = tostring, encode = tostring },
+        fs = { read = tostring, is_file = tostring },
         time = { now = function() return 0 end },
         http = mock_http,
       }
@@ -155,10 +158,41 @@ describe("std", function()
     it("leaves http nil when batteries has no http", function()
       local mock = {
         json = { decode = tostring, encode = tostring },
+        fs = { read = tostring, is_file = tostring },
         time = { now = function() return 0 end },
       }
       local s = reload_std_with_batteries(mock)
       assert.is_nil(s.http)
+    end)
+
+    it("errors when batteries.json is missing", function()
+      local mock = {
+        fs = { read = tostring, is_file = tostring },
+        time = { now = function() return 0 end },
+      }
+      h.assert_error_contains(function()
+        reload_std_with_batteries(mock)
+      end, "batteries.json is required")
+    end)
+
+    it("errors when batteries.fs is missing", function()
+      local mock = {
+        json = { decode = tostring, encode = tostring },
+        time = { now = function() return 0 end },
+      }
+      h.assert_error_contains(function()
+        reload_std_with_batteries(mock)
+      end, "batteries.fs is required")
+    end)
+
+    it("errors when batteries.time.now is missing", function()
+      local mock = {
+        json = { decode = tostring, encode = tostring },
+        fs = { read = tostring, is_file = tostring },
+      }
+      h.assert_error_contains(function()
+        reload_std_with_batteries(mock)
+      end, "batteries.time.now is required")
     end)
 
     it("errors when std global is missing", function()

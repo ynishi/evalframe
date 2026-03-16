@@ -97,6 +97,10 @@ const EVALFRAME_MODULES: &[(&str, &str)] = &[
         include_str!("../../evalframe/providers/mock.lua"),
     ),
     (
+        "providers/algocline.lua",
+        include_str!("../../evalframe/providers/algocline.lua"),
+    ),
+    (
         "swarm/init.lua",
         include_str!("../../evalframe/swarm/init.lua"),
     ),
@@ -192,22 +196,34 @@ fn run_suite(
 
     // Format and output results — Host's responsibility
     if json_output {
-        if let LuaValue::Table(ref tbl) = result {
-            let json_str = table_to_json(&lua, tbl)?;
-            if let Some(path) = output_path {
-                std::fs::write(path, &json_str)?;
-                println!("Results written to {} ({:.2}s)", path.display(), elapsed);
-            } else {
-                println!("{json_str}");
+        match result {
+            LuaValue::Table(ref tbl) => {
+                let json_str = table_to_json(&lua, tbl)?;
+                if let Some(path) = output_path {
+                    std::fs::write(path, &json_str)?;
+                    eprintln!("Results written to {} ({:.2}s)", path.display(), elapsed);
+                } else {
+                    println!("{json_str}");
+                }
+                return Ok(0);
             }
-            return Ok(0);
+            _ => {
+                eprintln!(
+                    "evalframe: --json requested but suite returned {}, not a table",
+                    lua_value_type_name(&result)
+                );
+                return Ok(1);
+            }
         }
     }
 
+    // Default output: print the result as text
+    let text = lua_value_to_string(&result);
     if let Some(path) = output_path {
-        let text = lua_value_to_string(&result);
         std::fs::write(path, &text)?;
-        println!("Output written to {} ({:.2}s)", path.display(), elapsed);
+        eprintln!("Output written to {} ({:.2}s)", path.display(), elapsed);
+    } else if !text.is_empty() {
+        println!("{text}");
     }
 
     Ok(0)
@@ -395,8 +411,25 @@ fn table_to_json(lua: &Lua, tbl: &LuaTable) -> Result<String, Box<dyn std::error
 fn lua_value_to_string(value: &LuaValue) -> String {
     match value {
         LuaValue::String(s) => s.to_string_lossy().to_string(),
+        LuaValue::Integer(n) => n.to_string(),
+        LuaValue::Number(n) => format!("{n}"),
+        LuaValue::Boolean(b) => b.to_string(),
         LuaValue::Nil => String::new(),
         other => format!("{other:?}"),
+    }
+}
+
+/// Return Lua type name for diagnostic messages.
+fn lua_value_type_name(value: &LuaValue) -> &'static str {
+    match value {
+        LuaValue::Nil => "nil",
+        LuaValue::Boolean(_) => "boolean",
+        LuaValue::Integer(_) => "integer",
+        LuaValue::Number(_) => "number",
+        LuaValue::String(_) => "string",
+        LuaValue::Table(_) => "table",
+        LuaValue::Function(_) => "function",
+        _ => "userdata",
     }
 }
 
