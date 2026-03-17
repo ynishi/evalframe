@@ -1,6 +1,7 @@
 local case = require("evalframe.model.case")
 local h    = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Case", function()
 
   -- ============================================================
@@ -10,10 +11,10 @@ describe("Case", function()
   describe("construction", function()
     it("creates from minimal spec", function()
       local c = case { input = "What is 2+2?" }
-      assert.is_true(case.is_case(c))
-      assert.equals("What is 2+2?", c.input)
-      assert.equals("", c.name)
-      assert.is_nil(c.expected)
+      expect(case.is_case(c)).to.equal(true)
+      expect(c.input).to.equal("What is 2+2?")
+      expect(c.name).to.equal("")
+      expect(c.expected).to.equal(nil)
     end)
 
     it("creates with all fields", function()
@@ -24,25 +25,25 @@ describe("Case", function()
         context  = { domain = "math" },
         tags     = { "math", "basic" },
       }
-      assert.equals("math_basic", c.name)
-      assert.same({ "4" }, c.expected)  -- normalized to list
-      assert.equals("math", c.context.domain)
-      assert.same({ "math", "basic" }, c.tags)
+      expect(c.name).to.equal("math_basic")
+      expect(c.expected).to.equal({ "4" })  -- normalized to list
+      expect(c.context.domain).to.equal("math")
+      expect(c.tags).to.equal({ "math", "basic" })
     end)
 
     it("normalizes string expected to list", function()
       local c = case { input = "q", expected = "answer" }
-      assert.same({ "answer" }, c.expected)
+      expect(c.expected).to.equal({ "answer" })
     end)
 
     it("accepts list of expected values", function()
       local c = case { input = "q", expected = { "a", "b" } }
-      assert.same({ "a", "b" }, c.expected)
+      expect(c.expected).to.equal({ "a", "b" })
     end)
 
     it("accepts nil expected (open-ended)", function()
       local c = case { input = "q" }
-      assert.is_nil(c.expected)
+      expect(c.expected).to.equal(nil)
     end)
   end)
 
@@ -53,8 +54,8 @@ describe("Case", function()
   describe("named DSL syntax", function()
     it("creates with name as first arg", function()
       local c = case "my_test" { input = "hello" }
-      assert.equals("my_test", c.name)
-      assert.equals("hello", c.input)
+      expect(c.name).to.equal("my_test")
+      expect(c.input).to.equal("hello")
     end)
   end)
 
@@ -111,21 +112,21 @@ describe("Case", function()
       local exp = { "a", "b" }
       local c = case { input = "q", expected = exp }
       exp[1] = "CHANGED"
-      assert.equals("a", c.expected[1])
+      expect(c.expected[1]).to.equal("a")
     end)
 
     it("defensive-copies tags (caller mutation does not affect case)", function()
       local tags = { "math" }
       local c = case { input = "q", tags = tags }
       tags[1] = "CHANGED"
-      assert.equals("math", c.tags[1])
+      expect(c.tags[1]).to.equal("math")
     end)
 
     it("defensive-copies context (caller mutation does not affect case)", function()
       local ctx = { key = "val" }
       local c = case { input = "q", context = ctx }
       ctx.key = "CHANGED"
-      assert.equals("val", c.context.key)
+      expect(c.context.key).to.equal("val")
     end)
   end)
 
@@ -136,17 +137,17 @@ describe("Case", function()
   describe("introspection", function()
     it("is_case returns true for Case", function()
       local c = case { input = "q" }
-      assert.is_true(case.is_case(c))
+      expect(case.is_case(c)).to.equal(true)
     end)
 
     it("is_case returns false for plain table", function()
-      assert.is_false(case.is_case({ input = "q" }))
+      expect(case.is_case({ input = "q" })).to.equal(false)
     end)
 
     it("has_tag checks tag presence", function()
       local c = case { input = "q", tags = { "math", "easy" } }
-      assert.is_true(case.has_tag(c, "math"))
-      assert.is_false(case.has_tag(c, "hard"))
+      expect(case.has_tag(c, "math")).to.equal(true)
+      expect(case.has_tag(c, "hard")).to.equal(false)
     end)
   end)
 end)

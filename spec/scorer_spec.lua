@@ -2,6 +2,7 @@ local scorer  = require("evalframe.model.scorer")
 local scorers = require("evalframe.presets.scorers")
 local h       = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Scorer", function()
 
   -- ============================================================
@@ -13,28 +14,28 @@ describe("Scorer", function()
       local s = scorer "custom" {
         score = function(v) return v and 1.0 or 0.0 end
       }
-      assert.is_true(scorer.is_scorer(s))
-      assert.equals("custom", s.name)
+      expect(scorer.is_scorer(s)).to.equal(true)
+      expect(s.name).to.equal("custom")
     end)
 
     it("creates linear from min/max", function()
       local s = scorer "linear" { min = 0, max = 10 }
-      assert.equals(0.5, s.score(5))
-      assert.equals(0.0, s.score(0))
-      assert.equals(1.0, s.score(10))
+      expect(s.score(5)).to.equal(0.5)
+      expect(s.score(0)).to.equal(0.0)
+      expect(s.score(10)).to.equal(1.0)
     end)
 
     it("clamps linear to [0,1]", function()
       local s = scorer "linear" { min = 0, max = 10 }
-      assert.equals(0.0, s.score(-5))
-      assert.equals(1.0, s.score(15))
+      expect(s.score(-5)).to.equal(0.0)
+      expect(s.score(15)).to.equal(1.0)
     end)
 
     it("creates threshold scorer", function()
       local s = scorer "thresh" { pass = 0.8 }
-      assert.equals(1.0, s.score(0.8))
-      assert.equals(1.0, s.score(1.0))
-      assert.equals(0.0, s.score(0.7))
+      expect(s.score(0.8)).to.equal(1.0)
+      expect(s.score(1.0)).to.equal(1.0)
+      expect(s.score(0.7)).to.equal(0.0)
     end)
 
     it("rejects same min and max", function()
@@ -56,33 +57,33 @@ describe("Scorer", function()
 
   describe("presets", function()
     it("bool scorer handles true/false", function()
-      assert.equals(1.0, scorers.bool.score(true))
-      assert.equals(0.0, scorers.bool.score(false))
+      expect(scorers.bool.score(true)).to.equal(1.0)
+      expect(scorers.bool.score(false)).to.equal(0.0)
     end)
 
     it("bool scorer clamps numbers", function()
-      assert.equals(0.5, scorers.bool.score(0.5))
-      assert.equals(1.0, scorers.bool.score(1.5))
-      assert.equals(0.0, scorers.bool.score(-0.5))
+      expect(scorers.bool.score(0.5)).to.equal(0.5)
+      expect(scorers.bool.score(1.5)).to.equal(1.0)
+      expect(scorers.bool.score(-0.5)).to.equal(0.0)
     end)
 
     it("linear_1_5 maps 1-5 range", function()
-      assert.equals(0.0, scorers.linear_1_5.score(1))
-      assert.equals(0.5, scorers.linear_1_5.score(3))
-      assert.equals(1.0, scorers.linear_1_5.score(5))
+      expect(scorers.linear_1_5.score(1)).to.equal(0.0)
+      expect(scorers.linear_1_5.score(3)).to.equal(0.5)
+      expect(scorers.linear_1_5.score(5)).to.equal(1.0)
     end)
 
     it("linear_1_10 maps 1-10 range", function()
-      assert.equals(0.0, scorers.linear_1_10.score(1))
-      assert.equals(1.0, scorers.linear_1_10.score(10))
+      expect(scorers.linear_1_10.score(1)).to.equal(0.0)
+      expect(scorers.linear_1_10.score(10)).to.equal(1.0)
     end)
 
     it("band_1_5 maps non-linear bands", function()
-      assert.equals(0.0, scorers.band_1_5.score(1))
-      assert.equals(0.0, scorers.band_1_5.score(2))
-      assert.equals(0.5, scorers.band_1_5.score(3))
-      assert.equals(1.0, scorers.band_1_5.score(4))
-      assert.equals(1.0, scorers.band_1_5.score(5))
+      expect(scorers.band_1_5.score(1)).to.equal(0.0)
+      expect(scorers.band_1_5.score(2)).to.equal(0.0)
+      expect(scorers.band_1_5.score(3)).to.equal(0.5)
+      expect(scorers.band_1_5.score(4)).to.equal(1.0)
+      expect(scorers.band_1_5.score(5)).to.equal(1.0)
     end)
   end)
 
@@ -95,21 +96,21 @@ describe("Scorer", function()
       local s = scorer "custom_band" {
         steps = { {0, 0.0}, {5, 0.5}, {8, 1.0} },
       }
-      assert.is_true(scorer.is_scorer(s))
-      assert.equals(0.0, s.score(3))
-      assert.equals(0.5, s.score(5))
-      assert.equals(0.5, s.score(7))
-      assert.equals(1.0, s.score(8))
-      assert.equals(1.0, s.score(10))
+      expect(scorer.is_scorer(s)).to.equal(true)
+      expect(s.score(3)).to.equal(0.0)
+      expect(s.score(5)).to.equal(0.5)
+      expect(s.score(7)).to.equal(0.5)
+      expect(s.score(8)).to.equal(1.0)
+      expect(s.score(10)).to.equal(1.0)
     end)
 
     it("handles unordered steps (auto-sorted)", function()
       local s = scorer "unordered" {
         steps = { {8, 1.0}, {0, 0.0}, {5, 0.5} },
       }
-      assert.equals(0.0, s.score(3))
-      assert.equals(0.5, s.score(6))
-      assert.equals(1.0, s.score(9))
+      expect(s.score(3)).to.equal(0.0)
+      expect(s.score(6)).to.equal(0.5)
+      expect(s.score(9)).to.equal(1.0)
     end)
 
     it("rejects fewer than 2 steps", function()

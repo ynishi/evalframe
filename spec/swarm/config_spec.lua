@@ -1,6 +1,7 @@
 local sw = require("evalframe.swarm")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.swarm", function()
 
   -- ============================================================
@@ -13,9 +14,9 @@ describe("sw.swarm", function()
         workers   = 3,
         max_ticks = 20,
       }
-      assert.is_true(sw.is_swarm_config(cfg))
-      assert.equals(3, cfg.workers)
-      assert.equals(20, cfg.max_ticks)
+      expect(sw.is_swarm_config(cfg)).to.equal(true)
+      expect(cfg.workers).to.equal(3)
+      expect(cfg.max_ticks).to.equal(20)
     end)
 
     it("applies defaults for optional fields", function()
@@ -23,8 +24,8 @@ describe("sw.swarm", function()
         workers   = 1,
         max_ticks = 10,
       }
-      assert.equals(1, cfg.managers)
-      assert.is_nil(cfg.strategy)
+      expect(cfg.managers).to.equal(1)
+      expect(cfg.strategy).to.equal(nil)
     end)
 
     it("accepts all known optional fields", function()
@@ -34,8 +35,8 @@ describe("sw.swarm", function()
         max_ticks = 20,
         strategy  = "ucb1",
       }
-      assert.equals(2, cfg.managers)
-      assert.equals("ucb1", cfg.strategy)
+      expect(cfg.managers).to.equal(2)
+      expect(cfg.strategy).to.equal("ucb1")
     end)
   end)
 

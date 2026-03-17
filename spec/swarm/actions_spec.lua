@@ -1,6 +1,7 @@
 local sw = require("evalframe.swarm")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.action / sw.actions", function()
 
   -- ============================================================
@@ -12,9 +13,9 @@ describe("sw.action / sw.actions", function()
       local a = sw.action "CheckStatus" {
         description = "Check service health",
       }
-      assert.is_true(sw.is_action(a))
-      assert.equals("CheckStatus", a.name)
-      assert.equals("Check service health", a.description)
+      expect(sw.is_action(a)).to.equal(true)
+      expect(a.name).to.equal("CheckStatus")
+      expect(a.description).to.equal("Check service health")
     end)
 
     it("stores non-description fields in context", function()
@@ -22,7 +23,7 @@ describe("sw.action / sw.actions", function()
         description = "Read service logs",
         target = "service",
       }
-      assert.equals("service", a.context.target)
+      expect(a.context.target).to.equal("service")
     end)
 
     it("stores arbitrary params in context", function()
@@ -31,13 +32,13 @@ describe("sw.action / sw.actions", function()
         cost = 5,
         tags = { "debug" },
       }
-      assert.equals(5, a.context.cost)
-      assert.same({ "debug" }, a.context.tags)
+      expect(a.context.cost).to.equal(5)
+      expect(a.context.tags).to.equal({ "debug" })
     end)
 
     it("has empty context when only description provided", function()
       local a = sw.action "Simple" { description = "simple" }
-      assert.same({}, a.context)
+      expect(a.context).to.equal({})
     end)
   end)
 
@@ -75,10 +76,10 @@ describe("sw.action / sw.actions", function()
         sw.action "A" { description = "action a" },
         sw.action "B" { description = "action b" },
       }
-      assert.is_true(sw.is_action_space(space))
-      assert.equals(2, #space.actions)
-      assert.equals("A", space.actions[1].name)
-      assert.equals("B", space.actions[2].name)
+      expect(sw.is_action_space(space)).to.equal(true)
+      expect(#space.actions).to.equal(2)
+      expect(space.actions[1].name).to.equal("A")
+      expect(space.actions[2].name).to.equal("B")
     end)
 
     it("provides lookup by name", function()
@@ -86,9 +87,9 @@ describe("sw.action / sw.actions", function()
         sw.action "CheckStatus" { description = "check" },
         sw.action "ReadLogs"    { description = "read" },
       }
-      assert.equals("check", space.by_name["CheckStatus"].description)
-      assert.equals("read",  space.by_name["ReadLogs"].description)
-      assert.is_nil(space.by_name["NonExistent"])
+      expect(space.by_name["CheckStatus"].description).to.equal("check")
+      expect( space.by_name["ReadLogs"].description).to.equal("read")
+      expect(space.by_name["NonExistent"]).to.equal(nil)
     end)
   end)
 

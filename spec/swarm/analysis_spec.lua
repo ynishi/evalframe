@@ -2,6 +2,7 @@ local sw       = require("evalframe.swarm")
 local analysis = sw.analysis
 local h        = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.analysis", function()
 
   -- Shared fixture: multiple traces for aggregate analysis
@@ -51,10 +52,10 @@ describe("sw.analysis", function()
       -- t1: Check,Read  Read,Restart  Restart,Check
       -- t2: Check,Read  Read,Restart
       -- t3: Check,Check
-      assert.is_not_nil(freq["Check,Read"])
-      assert.equals(2, freq["Check,Read"].count)
-      assert.equals(2, freq["Check,Read"].success)  -- both t1 and t2 succeeded
-      assert.equals(1.0, freq["Check,Read"].rate)
+      expect(freq["Check,Read"]).to_not.equal(nil)
+      expect(freq["Check,Read"].count).to.equal(2)
+      expect(freq["Check,Read"].success).to.equal(2)  -- both t1 and t2 succeeded
+      expect(freq["Check,Read"].rate).to.equal(1.0)
     end)
 
     it("tracks success rate per sequence", function()
@@ -63,8 +64,8 @@ describe("sw.analysis", function()
 
       -- Check,Check only appears in t3 (failure)
       if freq["Check,Check"] then
-        assert.equals(0, freq["Check,Check"].success)
-        assert.equals(0, freq["Check,Check"].rate)
+        expect(freq["Check,Check"].success).to.equal(0)
+        expect(freq["Check,Check"].rate).to.equal(0)
       end
     end)
 
@@ -73,12 +74,12 @@ describe("sw.analysis", function()
       local freq = analysis.action_sequences(traces)
 
       -- t1: Check,Read,Restart  Read,Restart,Check (trigrams)
-      assert.is_not_nil(freq["Check,Read,Restart"])
+      expect(freq["Check,Read,Restart"]).to_not.equal(nil)
     end)
 
     it("handles empty trace list", function()
       local freq = analysis.action_sequences({}, 2)
-      assert.same({}, freq)
+      expect(freq).to.equal({})
     end)
 
     it("handles trace shorter than ngram_size", function()
@@ -87,7 +88,7 @@ describe("sw.analysis", function()
         actions = { { tick = 1, worker = "w-0", action = "A", result = "ok" } },
       }}
       local freq = analysis.action_sequences(short, 3)
-      assert.same({}, freq)
+      expect(freq).to.equal({})
     end)
 
     it("rejects ngram_size < 1", function()
@@ -108,8 +109,8 @@ describe("sw.analysis", function()
         },
       }
       local freq = analysis.action_sequences({ t }, 2)
-      assert.equals(1, freq["A,B"].count)    -- 1 trace, not 2 occurrences
-      assert.equals(1, freq["A,B"].success)
+      expect(freq["A,B"].count).to.equal(1)    -- 1 trace, not 2 occurrences
+      expect(freq["A,B"].success).to.equal(1)
     end)
   end)
 
@@ -122,13 +123,13 @@ describe("sw.analysis", function()
       local traces = make_traces()
       local conv = analysis.convergence(traces)
 
-      assert.equals(3, conv.n)
+      expect(conv.n).to.equal(3)
       -- mean of {10, 8, 20} = 12.67
-      assert.near(12.67, conv.mean, 0.1)
-      assert.equals(8, conv.min)
-      assert.equals(20, conv.max)
-      assert.is_number(conv.ci_lower)
-      assert.is_number(conv.ci_upper)
+      expect(conv.mean).to.equal(12.67, 0.1)
+      expect(conv.min).to.equal(8)
+      expect(conv.max).to.equal(20)
+      expect(conv.ci_lower).to.be.a("number")
+      expect(conv.ci_upper).to.be.a("number")
     end)
 
     it("measures first occurrence of target action", function()
@@ -136,8 +137,8 @@ describe("sw.analysis", function()
       local conv = analysis.convergence(traces, "Read")
 
       -- Read first at tick 3 (t1), tick 2 (t2), never (t3)
-      assert.equals(2, conv.n)
-      assert.near(2.5, conv.mean, 0.01)
+      expect(conv.n).to.equal(2)
+      expect(conv.mean).to.equal(2.5, 0.01)
     end)
 
     it("skips traces without target action", function()
@@ -145,12 +146,12 @@ describe("sw.analysis", function()
       local conv = analysis.convergence(traces, "Restart")
 
       -- Restart at tick 5 (t1), tick 4 (t2), never (t3)
-      assert.equals(2, conv.n)
+      expect(conv.n).to.equal(2)
     end)
 
     it("handles empty trace list", function()
       local conv = analysis.convergence({})
-      assert.equals(0, conv.n)
+      expect(conv.n).to.equal(0)
     end)
   end)
 
@@ -164,10 +165,10 @@ describe("sw.analysis", function()
       local eff = analysis.exploration_efficiency(traces[1])
 
       -- t1: Check, Read, Restart, Check -> 3 unique / 4 total
-      assert.equals(4, eff.total)
-      assert.equals(3, eff.unique)
-      assert.near(0.75, eff.unique_ratio, 0.01)
-      assert.near(0.25, eff.duplicate_rate, 0.01)
+      expect(eff.total).to.equal(4)
+      expect(eff.unique).to.equal(3)
+      expect(eff.unique_ratio).to.equal(0.75, 0.01)
+      expect(eff.duplicate_rate).to.equal(0.25, 0.01)
     end)
 
     it("all distinct actions", function()
@@ -180,15 +181,15 @@ describe("sw.analysis", function()
         },
       }
       local eff = analysis.exploration_efficiency(t)
-      assert.equals(1.0, eff.unique_ratio)
-      assert.equals(0, eff.duplicate_rate)
+      expect(eff.unique_ratio).to.equal(1.0)
+      expect(eff.duplicate_rate).to.equal(0)
     end)
 
     it("handles empty actions", function()
       local t = sw.trace { termination = "failure", actions = {} }
       local eff = analysis.exploration_efficiency(t)
-      assert.equals(0, eff.total)
-      assert.equals(0, eff.unique_ratio)
+      expect(eff.total).to.equal(0)
+      expect(eff.unique_ratio).to.equal(0)
     end)
   end)
 
@@ -203,16 +204,16 @@ describe("sw.analysis", function()
 
       -- t1: w-0 does Check,Restart; w-1 does Read,Check
       -- "Check" done by both w-0 and w-1 -> overlap
-      assert.equals(2, coord.worker_count)
-      assert.is_true(coord.overlap_rate > 0)
+      expect(coord.worker_count).to.equal(2)
+      expect(coord.overlap_rate > 0).to.equal(true)
     end)
 
     it("reports per-worker counts", function()
       local traces = make_traces()
       local coord = analysis.worker_coordination(traces[1])
 
-      assert.equals(2, coord.workers["w-0"].count)  -- Check, Restart
-      assert.equals(2, coord.workers["w-1"].count)  -- Read, Check
+      expect(coord.workers["w-0"].count).to.equal(2)  -- Check, Restart
+      expect(coord.workers["w-1"].count).to.equal(2)  -- Read, Check
     end)
 
     it("no overlap for single worker", function()
@@ -224,15 +225,15 @@ describe("sw.analysis", function()
         },
       }
       local coord = analysis.worker_coordination(t)
-      assert.equals(1, coord.worker_count)
-      assert.equals(0, coord.overlap_rate)
+      expect(coord.worker_count).to.equal(1)
+      expect(coord.overlap_rate).to.equal(0)
     end)
 
     it("handles empty actions", function()
       local t = sw.trace { termination = "failure", actions = {} }
       local coord = analysis.worker_coordination(t)
-      assert.equals(0, coord.worker_count)
-      assert.equals(0, coord.overlap_rate)
+      expect(coord.worker_count).to.equal(0)
+      expect(coord.overlap_rate).to.equal(0)
     end)
   end)
 
@@ -248,9 +249,9 @@ describe("sw.analysis", function()
       end)
 
       -- t1: Check=ok, Read=OOM, Restart=ok, Check=ok -> 3/4 valid
-      assert.equals(4, val.total)
-      assert.equals(3, val.valid)
-      assert.near(0.75, val.rate, 0.01)
+      expect(val.total).to.equal(4)
+      expect(val.valid).to.equal(3)
+      expect(val.rate).to.equal(0.75, 0.01)
     end)
 
     it("all valid", function()
@@ -262,14 +263,14 @@ describe("sw.analysis", function()
         },
       }
       local val = analysis.action_validity(t, function(_) return true end)
-      assert.equals(1.0, val.rate)
+      expect(val.rate).to.equal(1.0)
     end)
 
     it("handles empty actions", function()
       local t = sw.trace { termination = "failure", actions = {} }
       local val = analysis.action_validity(t, function(_) return true end)
-      assert.equals(0, val.total)
-      assert.equals(0, val.rate)
+      expect(val.total).to.equal(0)
+      expect(val.rate).to.equal(0)
     end)
   end)
 end)

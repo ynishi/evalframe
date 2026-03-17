@@ -3,6 +3,7 @@ local claude    = require("evalframe.providers.claude_cli")
 local ef        = require("evalframe")
 local h         = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Providers", function()
 
   -- ============================================================
@@ -14,25 +15,25 @@ describe("Providers", function()
       it("always returns same text", function()
         local p = mock.static("hello")
         local r = p("anything")
-        assert.equals("hello", r.text)
-        assert.equals("mock", r.model)
+        expect(r.text).to.equal("hello")
+        expect(r.model).to.equal("mock")
       end)
     end)
 
     describe("map", function()
       it("returns exact match", function()
         local p = mock.map({ ["2+2"] = "4" })
-        assert.equals("4", p("2+2").text)
+        expect(p("2+2").text).to.equal("4")
       end)
 
       it("returns partial match", function()
         local p = mock.map({ ["2+2"] = "4" })
-        assert.equals("4", p("What is 2+2?").text)
+        expect(p("What is 2+2?").text).to.equal("4")
       end)
 
       it("returns empty on no match", function()
         local p = mock.map({ ["2+2"] = "4" })
-        assert.equals("", p("hello").text)
+        expect(p("hello").text).to.equal("")
       end)
 
       it("returns longest partial match when multiple keys match", function()
@@ -40,7 +41,7 @@ describe("Providers", function()
           ["2+2"] = "short",
           ["What is 2+2"] = "long",
         })
-        assert.equals("long", p("What is 2+2?").text)
+        expect(p("What is 2+2?").text).to.equal("long")
       end)
     end)
 
@@ -49,7 +50,7 @@ describe("Providers", function()
         local p = mock.fn(function(input)
           return "Echo: " .. input
         end)
-        assert.equals("Echo: hi", p("hi").text)
+        expect(p("hi").text).to.equal("Echo: hi")
       end)
     end)
 
@@ -59,17 +60,17 @@ describe("Providers", function()
         p("first")
         p("second")
         p("third")
-        assert.equals(3, #log.calls)
-        assert.equals("first", log.calls[1])
-        assert.equals("second", log.calls[2])
-        assert.equals("third", log.calls[3])
+        expect(#log.calls).to.equal(3)
+        expect(log.calls[1]).to.equal("first")
+        expect(log.calls[2]).to.equal("second")
+        expect(log.calls[3]).to.equal("third")
       end)
 
       it("cycles through responses", function()
         local p, _ = mock.recording({ "a", "b" })
-        assert.equals("a", p("x").text)
-        assert.equals("b", p("x").text)
-        assert.equals("a", p("x").text)  -- cycles
+        expect(p("x").text).to.equal("a")
+        expect(p("x").text).to.equal("b")
+        expect(p("x").text).to.equal("a")  -- cycles
       end)
 
       it("rejects empty responses list", function()
@@ -100,7 +101,7 @@ describe("Providers", function()
         },
       }
       local report = s:run()
-      assert.equals(1, report.aggregated.passed)
+      expect(report.aggregated.passed).to.equal(1)
     end)
 
     it("mock.map works in suite", function()
@@ -116,13 +117,13 @@ describe("Providers", function()
         },
       }
       local report = s:run()
-      assert.equals(2, report.aggregated.passed)
+      expect(report.aggregated.passed).to.equal(2)
     end)
 
     it("ef.providers.mock is accessible", function()
       local p = ef.providers.mock.static("test")
-      assert.is_function(p)
-      assert.equals("test", p("x").text)
+      expect(p).to.be.a("function")
+      expect(p("x").text).to.equal("test")
     end)
   end)
 

@@ -3,6 +3,7 @@ local graders = require("evalframe.presets.graders")
 local case    = require("evalframe.model.case")
 local h       = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Grader", function()
 
   -- ============================================================
@@ -14,8 +15,8 @@ describe("Grader", function()
       local g = grader "my_grader" {
         check = function(resp, c) return resp.text == "ok" end
       }
-      assert.is_true(grader.is_grader(g))
-      assert.equals("my_grader", g.name)
+      expect(grader.is_grader(g)).to.equal(true)
+      expect(g.name).to.equal("my_grader")
     end)
 
     it("rejects missing check", function()
@@ -41,55 +42,55 @@ describe("Grader", function()
     describe("exact_match", function()
       it("passes on exact match", function()
         local val = graders.exact_match.check({ text = "hello world" }, c)
-        assert.is_true(val)
+        expect(val).to.equal(true)
       end)
 
       it("fails on partial match", function()
         local val = graders.exact_match.check({ text = "hello" }, c)
-        assert.is_false(val)
+        expect(val).to.equal(false)
       end)
     end)
 
     describe("contains", function()
       it("passes when text contains expected", function()
         local val = graders.contains.check({ text = "say hello world now" }, c)
-        assert.is_true(val)
+        expect(val).to.equal(true)
       end)
 
       it("fails when text does not contain expected", function()
         local val = graders.contains.check({ text = "goodbye" }, c)
-        assert.is_false(val)
+        expect(val).to.equal(false)
       end)
     end)
 
     describe("starts_with", function()
       it("passes when text starts with expected", function()
         local val = graders.starts_with.check({ text = "hello world!" }, c)
-        assert.is_true(val)
+        expect(val).to.equal(true)
       end)
 
       it("fails on wrong prefix", function()
         local val = graders.starts_with.check({ text = "world hello" }, c)
-        assert.is_false(val)
+        expect(val).to.equal(false)
       end)
     end)
 
     describe("not_empty", function()
       it("passes for non-empty text", function()
         local val = graders.not_empty.check({ text = "x" }, c)
-        assert.is_true(val)
+        expect(val).to.equal(true)
       end)
 
       it("fails for empty text", function()
         local val = graders.not_empty.check({ text = "" }, c)
-        assert.is_false(val)
+        expect(val).to.equal(false)
       end)
     end)
 
     describe("length", function()
       it("returns text length", function()
         local val = graders.length.check({ text = "hello" }, c)
-        assert.equals(5, val)
+        expect(val).to.equal(5)
       end)
     end)
 
@@ -97,37 +98,37 @@ describe("Grader", function()
       it("matches Lua pattern from context", function()
         local rc = case { input = "q", context = { pattern = "%d+" } }
         local val = graders.regex.check({ text = "answer is 42" }, rc)
-        assert.is_true(val)
+        expect(val).to.equal(true)
       end)
 
       it("fails when pattern doesn't match", function()
         local rc = case { input = "q", context = { pattern = "%d+" } }
         local val = graders.regex.check({ text = "no numbers" }, rc)
-        assert.is_false(val)
+        expect(val).to.equal(false)
       end)
 
       it("falls back to expected[1] as pattern", function()
         local rc = case { input = "q", expected = "%d+" }
         local val = graders.regex.check({ text = "answer is 42" }, rc)
-        assert.is_true(val)
+        expect(val).to.equal(true)
       end)
 
       it("context.pattern takes precedence over expected[1]", function()
         local rc = case { input = "q", expected = "NOMATCH", context = { pattern = "%d+" } }
         local val = graders.regex.check({ text = "answer is 42" }, rc)
-        assert.is_true(val)  -- context.pattern wins, not expected[1]
+        expect(val).to.equal(true)  -- context.pattern wins, not expected[1]
       end)
     end)
 
     describe("latency", function()
       it("returns latency_ms when present", function()
         local val = graders.latency.check({ text = "ok", latency_ms = 150 }, c)
-        assert.equals(150, val)
+        expect(val).to.equal(150)
       end)
 
       it("returns nil when latency_ms is missing", function()
         local val = graders.latency.check({ text = "ok" }, c)
-        assert.is_nil(val)
+        expect(val).to.equal(nil)
       end)
     end)
   end)
@@ -142,34 +143,34 @@ describe("Grader", function()
 
     it("all passes when all pass", function()
       local combined = grader.all(g_yes, g_yes)
-      assert.is_true(grader.is_grader(combined))
+      expect(grader.is_grader(combined)).to.equal(true)
       local val = combined.check({ text = "" }, case { input = "q" })
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
 
     it("all fails when any fails", function()
       local combined = grader.all(g_yes, g_no)
       local val = combined.check({ text = "" }, case { input = "q" })
-      assert.is_false(val)
+      expect(val).to.equal(false)
     end)
 
     it("any passes when at least one passes", function()
       local combined = grader.any(g_no, g_yes)
       local val = combined.check({ text = "" }, case { input = "q" })
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
 
     it("any fails when all fail", function()
       local combined = grader.any(g_no, g_no)
       local val = combined.check({ text = "" }, case { input = "q" })
-      assert.is_false(val)
+      expect(val).to.equal(false)
     end)
 
     it("all returns 0 (not true) when numeric graders all return 0", function()
       local g_zero = grader "zero" { check = function() return 0 end }
       local combined = grader.all(g_zero, g_zero)
       local val = combined.check({ text = "" }, case { input = "q" })
-      assert.equals(0, val)
+      expect(val).to.equal(0)
     end)
 
     it("all returns minimum for mixed numeric graders", function()
@@ -177,7 +178,7 @@ describe("Grader", function()
       local g_high = grader "high" { check = function() return 5 end }
       local combined = grader.all(g_low, g_high)
       local val = combined.check({ text = "" }, case { input = "q" })
-      assert.equals(2, val)
+      expect(val).to.equal(2)
     end)
   end)
 
@@ -189,37 +190,37 @@ describe("Grader", function()
     it("valid_json_response passes for non-empty valid JSON", function()
       local c = case { input = "q" }
       local val = graders.valid_json_response.check({ text = '{"ok":true}' }, c)
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
 
     it("valid_json_response fails for empty text", function()
       local c = case { input = "q" }
       local val = graders.valid_json_response.check({ text = "" }, c)
-      assert.is_false(val)
+      expect(val).to.equal(false)
     end)
 
     it("valid_json_response fails for invalid JSON", function()
       local c = case { input = "q" }
       local val = graders.valid_json_response.check({ text = "not json" }, c)
-      assert.is_false(val)
+      expect(val).to.equal(false)
     end)
 
     it("flexible_match passes on exact match", function()
       local c = case { input = "q", expected = "hello" }
       local val = graders.flexible_match.check({ text = "hello" }, c)
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
 
     it("flexible_match passes on contains", function()
       local c = case { input = "q", expected = "hello" }
       local val = graders.flexible_match.check({ text = "say hello world" }, c)
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
 
     it("flexible_match fails when neither matches", function()
       local c = case { input = "q", expected = "hello" }
       local val = graders.flexible_match.check({ text = "goodbye" }, c)
-      assert.is_false(val)
+      expect(val).to.equal(false)
     end)
   end)
 
@@ -233,8 +234,8 @@ describe("Grader", function()
         check = function() error("boom") end
       }
       local val, err = g.check({ text = "" }, case { input = "q" })
-      assert.is_nil(val)
-      assert.truthy(err:find("boom", 1, true))
+      expect(val).to.equal(nil)
+      expect(err:find("boom", 1, true)).to.be.truthy()
     end)
   end)
 end)

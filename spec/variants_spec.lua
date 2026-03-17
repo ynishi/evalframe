@@ -1,6 +1,7 @@
 local variants = require("evalframe.variants")
 local h        = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("variants", function()
 
   -- ============================================================
@@ -13,9 +14,9 @@ describe("variants", function()
         { model = "gpt-4",  name = "gpt4" },
         { model = "claude", name = "claude" },
       }
-      assert.equals("model", dim.dimension)
-      assert.equals(2, #dim.entries)
-      assert.equals("gpt4", dim.entries[1].name)
+      expect(dim.dimension).to.equal("model")
+      expect(#dim.entries).to.equal(2)
+      expect(dim.entries[1].name).to.equal("gpt4")
     end)
 
     it("rejects empty entries", function()
@@ -35,8 +36,8 @@ describe("variants", function()
         { workers = 1 },
         { workers = 3 },
       }
-      assert.equals("scale_1", dim.entries[1].name)
-      assert.equals("scale_2", dim.entries[2].name)
+      expect(dim.entries[1].name).to.equal("scale_1")
+      expect(dim.entries[2].name).to.equal("scale_2")
     end)
   end)
 
@@ -62,15 +63,15 @@ describe("variants", function()
         mode = "cross",
       }
 
-      assert.equals(4, #result)
+      expect(#result).to.equal(4)
 
       -- Verify all combinations exist
       local names = {}
       for _, v in ipairs(result) do names[v.name] = true end
-      assert.is_true(names["gpt4_cold"])
-      assert.is_true(names["gpt4_hot"])
-      assert.is_true(names["claude_cold"])
-      assert.is_true(names["claude_hot"])
+      expect(names["gpt4_cold"]).to.equal(true)
+      expect(names["gpt4_hot"]).to.equal(true)
+      expect(names["claude_cold"]).to.equal(true)
+      expect(names["claude_hot"]).to.equal(true)
     end)
 
     it("merges base with dimension overrides", function()
@@ -84,10 +85,10 @@ describe("variants", function()
         mode = "cross",
       }
 
-      assert.equals(1, #result)
-      assert.equals("gpt-4", result[1].model)
-      assert.equals(0.7, result[1].temperature)  -- from base
-      assert.equals(100, result[1].max_tokens)    -- from base
+      expect(#result).to.equal(1)
+      expect(result[1].model).to.equal("gpt-4")
+      expect(result[1].temperature).to.equal(0.7)  -- from base
+      expect(result[1].max_tokens).to.equal(100)    -- from base
     end)
 
     it("dimension values override base values", function()
@@ -101,7 +102,7 @@ describe("variants", function()
         mode = "cross",
       }
 
-      assert.equals(0.0, result[1].temperature)  -- overridden
+      expect(result[1].temperature).to.equal(0.0)  -- overridden
     end)
 
     it("cross product with three dimensions", function()
@@ -126,17 +127,17 @@ describe("variants", function()
       }
 
       -- 2 x 2 x 1 = 4
-      assert.equals(4, #result)
+      expect(#result).to.equal(4)
 
       -- Verify merged values
       local found = false
       for _, v in ipairs(result) do
         if v.x == 2 and v.y == 20 and v.z == 100 then
           found = true
-          assert.equals("a2_b2_c1", v.name)
+          expect(v.name).to.equal("a2_b2_c1")
         end
       end
-      assert.is_true(found)
+      expect(found).to.equal(true)
     end)
 
     it("defaults to cross mode when mode omitted", function()
@@ -154,7 +155,7 @@ describe("variants", function()
         },
       }
 
-      assert.equals(4, #result)
+      expect(#result).to.equal(4)
     end)
   end)
 
@@ -180,14 +181,14 @@ describe("variants", function()
         mode = "zip",
       }
 
-      assert.equals(2, #result)
-      assert.equals("gpt4_cold", result[1].name)
-      assert.equals("gpt-4", result[1].model)
-      assert.equals(0.0, result[1].temperature)
+      expect(#result).to.equal(2)
+      expect(result[1].name).to.equal("gpt4_cold")
+      expect(result[1].model).to.equal("gpt-4")
+      expect(result[1].temperature).to.equal(0.0)
 
-      assert.equals("claude_hot", result[2].name)
-      assert.equals("claude", result[2].model)
-      assert.equals(1.0, result[2].temperature)
+      expect(result[2].name).to.equal("claude_hot")
+      expect(result[2].model).to.equal("claude")
+      expect(result[2].temperature).to.equal(1.0)
     end)
 
     it("truncates to shortest dimension", function()
@@ -208,7 +209,7 @@ describe("variants", function()
         mode = "zip",
       }
 
-      assert.equals(2, #result)
+      expect(#result).to.equal(2)
     end)
   end)
 
@@ -227,9 +228,9 @@ describe("variants", function()
         },
       }
 
-      assert.equals(2, #result)
-      assert.equals("gpt4", result[1].name)
-      assert.is_true(result[1].shared)
+      expect(#result).to.equal(2)
+      expect(result[1].name).to.equal("gpt4")
+      expect(result[1].shared).to.equal(true)
     end)
   end)
 
@@ -276,7 +277,7 @@ describe("variants", function()
         mode = "cross",
       }
 
-      assert.equals("alpha_beta", result[1].name)
+      expect(result[1].name).to.equal("alpha_beta")
     end)
 
     it("name does not collide with base keys", function()
@@ -286,7 +287,7 @@ describe("variants", function()
         variants.vary "a" { { x = 1, name = "v1" } },
       }
 
-      assert.equals("v1", result[1].name)
+      expect(result[1].name).to.equal("v1")
     end)
   end)
 
@@ -305,8 +306,8 @@ describe("variants", function()
         },
       }
 
-      assert.is_nil(base.model)
-      assert.is_nil(base.name)
+      expect(base.model).to.equal(nil)
+      expect(base.name).to.equal(nil)
     end)
 
     it("does not mutate entry tables when auto-generating names", function()
@@ -321,8 +322,8 @@ describe("variants", function()
       }
 
       -- entries should NOT have name fields injected
-      assert.is_nil(entries[1].name)
-      assert.is_nil(entries[2].name)
+      expect(entries[1].name).to.equal(nil)
+      expect(entries[2].name).to.equal(nil)
     end)
 
     it("variants are independent tables", function()
@@ -335,7 +336,7 @@ describe("variants", function()
       }
 
       result[1].x = 999
-      assert.equals(2, result[2].x)  -- not affected
+      expect(result[2].x).to.equal(2)  -- not affected
     end)
   end)
 end)

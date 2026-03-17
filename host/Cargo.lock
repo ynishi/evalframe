@@ -196,6 +196,7 @@ dependencies = [
  "clap",
  "mlua",
  "mlua-batteries",
+ "mlua-lspec",
  "mlua-pkg",
 ]
 
@@ -359,6 +360,13 @@ dependencies = [
  "serde_json",
  "ureq",
  "walkdir",
+]
+
+[[package]]
+name = "mlua-lspec"
+version = "0.2.0"
+dependencies = [
+ "mlua",
 ]
 
 [[package]]

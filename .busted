@@ -1,8 +1,0 @@
-return {
-  _all = {
-    ROOT = { "." },
-    pattern = "_spec",
-    lpath = "?.lua;?/init.lua",
-    helper = "spec/busted_bootstrap",
-  },
-}

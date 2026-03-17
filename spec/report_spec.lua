@@ -1,6 +1,7 @@
 local report = require("evalframe.eval.report")
 local stats  = require("evalframe.eval.stats")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Report", function()
 
   -- ============================================================
@@ -11,13 +12,13 @@ describe("Report", function()
     it("includes suite name when provided", function()
       local agg = stats.aggregate({})
       local text = report.summary(agg, { name = "test_suite" })
-      assert.truthy(text:find("Suite: test_suite", 1, true))
+      expect(text:find("Suite: test_suite", 1, true)).to.be.truthy()
     end)
 
     it("omits suite name when not provided", function()
       local agg = stats.aggregate({})
       local text = report.summary(agg)
-      assert.falsy(text:find("Suite:", 1, true))
+      expect(text:find("Suite:", 1, true)).to_not.be.truthy()
     end)
 
     it("shows pass@1 for any result set", function()
@@ -26,7 +27,7 @@ describe("Report", function()
       }
       local agg = stats.aggregate(results)
       local text = report.summary(agg)
-      assert.truthy(text:find("pass@1:", 1, true))
+      expect(text:find("pass@1:", 1, true)).to.be.truthy()
     end)
 
     it("shows pass@5 when n >= 5", function()
@@ -36,7 +37,7 @@ describe("Report", function()
       end
       local agg = stats.aggregate(results)
       local text = report.summary(agg)
-      assert.truthy(text:find("pass@5:", 1, true))
+      expect(text:find("pass@5:", 1, true)).to.be.truthy()
     end)
 
     it("omits pass@5 when n < 5", function()
@@ -45,7 +46,7 @@ describe("Report", function()
       }
       local agg = stats.aggregate(results)
       local text = report.summary(agg)
-      assert.falsy(text:find("pass@5:", 1, true))
+      expect(text:find("pass@5:", 1, true)).to_not.be.truthy()
     end)
 
     it("shows Mean and CI", function()
@@ -55,8 +56,8 @@ describe("Report", function()
       }
       local agg = stats.aggregate(results)
       local text = report.summary(agg)
-      assert.truthy(text:find("Mean:", 1, true))
-      assert.truthy(text:find("95%% CI:"))
+      expect(text:find("Mean:", 1, true)).to.be.truthy()
+      expect(text:find("95%% CI:")).to.be.truthy()
     end)
 
     it("shows by_tag section", function()
@@ -66,9 +67,9 @@ describe("Report", function()
       }
       local agg = stats.aggregate(results)
       local text = report.summary(agg)
-      assert.truthy(text:find("By tag:", 1, true))
-      assert.truthy(text:find("alpha", 1, true))
-      assert.truthy(text:find("beta", 1, true))
+      expect(text:find("By tag:", 1, true)).to.be.truthy()
+      expect(text:find("alpha", 1, true)).to.be.truthy()
+      expect(text:find("beta", 1, true)).to.be.truthy()
     end)
 
     it("sorts tags alphabetically", function()
@@ -80,7 +81,7 @@ describe("Report", function()
       local text = report.summary(agg)
       local apple_pos = text:find("apple", 1, true)
       local zebra_pos = text:find("zebra", 1, true)
-      assert.truthy(apple_pos < zebra_pos)
+      expect(apple_pos < zebra_pos).to.be.truthy()
     end)
   end)
 
@@ -94,7 +95,7 @@ describe("Report", function()
         { passed = true },
         { passed = true },
       }
-      assert.equals(0, #report.failures(results))
+      expect(#report.failures(results)).to.equal(0)
     end)
 
     it("extracts only failed results", function()
@@ -104,7 +105,7 @@ describe("Report", function()
         { passed = true },
         { passed = false },
       }
-      assert.equals(2, #report.failures(results))
+      expect(#report.failures(results)).to.equal(2)
     end)
   end)
 
@@ -122,7 +123,7 @@ describe("Report", function()
         grades = { { grader = "exact_match", score = 1.0, grade = true, weight = 1.0 } },
       }
       local text = report.format_result(r)
-      assert.truthy(text:find("[PASS]", 1, true))
+      expect(text:find("[PASS]", 1, true)).to.be.truthy()
     end)
 
     it("shows FAIL for failing result", function()
@@ -134,7 +135,7 @@ describe("Report", function()
         grades = { { grader = "exact_match", score = 0.0, grade = false, weight = 1.0 } },
       }
       local text = report.format_result(r)
-      assert.truthy(text:find("[FAIL]", 1, true))
+      expect(text:find("[FAIL]", 1, true)).to.be.truthy()
     end)
 
     it("uses case name as label when present", function()
@@ -146,7 +147,7 @@ describe("Report", function()
         grades = {},
       }
       local text = report.format_result(r)
-      assert.truthy(text:find("my_case", 1, true))
+      expect(text:find("my_case", 1, true)).to.be.truthy()
     end)
 
     it("shows error in grade detail", function()
@@ -158,7 +159,7 @@ describe("Report", function()
         grades = { { grader = "bad", score = 0.0, grade = nil, weight = 1.0, error = "boom" } },
       }
       local text = report.format_result(r)
-      assert.truthy(text:find("err=boom", 1, true))
+      expect(text:find("err=boom", 1, true)).to.be.truthy()
     end)
 
     it("shows warning in grade detail", function()
@@ -170,7 +171,7 @@ describe("Report", function()
         grades = { { grader = "g", score = 0.0, grade = "x", weight = 1.0, warning = "type mismatch" } },
       }
       local text = report.format_result(r)
-      assert.truthy(text:find("WARN=type mismatch", 1, true))
+      expect(text:find("WARN=type mismatch", 1, true)).to.be.truthy()
     end)
   end)
 end)

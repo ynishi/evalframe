@@ -5,6 +5,7 @@ local graders = require("evalframe.presets.graders")
 local scorers = require("evalframe.presets.scorers")
 local h       = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Binding", function()
 
   local g = graders.exact_match
@@ -17,32 +18,32 @@ describe("Binding", function()
   describe("construction", function()
     it("creates with grader + scorer", function()
       local b = bind { g, s }
-      assert.is_true(bind.is_binding(b))
-      assert.equals(g, b.grader)
-      assert.equals(s, b.scorer)
-      assert.equals(1.0, b.weight)
+      expect(bind.is_binding(b)).to.equal(true)
+      expect(b.grader).to.equal(g)
+      expect(b.scorer).to.equal(s)
+      expect(b.weight).to.equal(1.0)
     end)
 
     it("accepts reverse order (type dispatch)", function()
       local b = bind { s, g }
-      assert.equals(g, b.grader)
-      assert.equals(s, b.scorer)
+      expect(b.grader).to.equal(g)
+      expect(b.scorer).to.equal(s)
     end)
 
     it("creates with grader only (default bool scorer)", function()
       local b = bind { g }
-      assert.equals(g, b.grader)
-      assert.equals("_bool", b.scorer.name)
+      expect(b.grader).to.equal(g)
+      expect(b.scorer.name).to.equal("_bool")
     end)
 
     it("accepts weight override", function()
       local b = bind { g, s, weight = 0.5 }
-      assert.equals(0.5, b.weight)
+      expect(b.weight).to.equal(0.5)
     end)
 
     it("creates with label syntax", function()
       local b = bind "accuracy" { g, s }
-      assert.is_true(bind.is_binding(b))
+      expect(bind.is_binding(b)).to.equal(true)
     end)
   end)
 
@@ -77,12 +78,12 @@ describe("Binding", function()
   describe("introspection", function()
     it("key returns grader name", function()
       local b = bind { g }
-      assert.equals("exact_match", bind.key(b))
+      expect(bind.key(b)).to.equal("exact_match")
     end)
 
     it("is_binding detects bindings", function()
-      assert.is_true(bind.is_binding(bind { g }))
-      assert.is_false(bind.is_binding({ grader = g }))
+      expect(bind.is_binding(bind { g })).to.equal(true)
+      expect(bind.is_binding({ grader = g })).to.equal(false)
     end)
   end)
 
@@ -93,19 +94,19 @@ describe("Binding", function()
   describe("default scorer", function()
     it("converts bool to score", function()
       local b = bind { g }
-      assert.equals(1.0, b.scorer.score(true))
-      assert.equals(0.0, b.scorer.score(false))
+      expect(b.scorer.score(true)).to.equal(1.0)
+      expect(b.scorer.score(false)).to.equal(0.0)
     end)
 
     it("clamps numbers to [0,1]", function()
       local b = bind { g }
-      assert.equals(0.5, b.scorer.score(0.5))
-      assert.equals(1.0, b.scorer.score(1.5))
+      expect(b.scorer.score(0.5)).to.equal(0.5)
+      expect(b.scorer.score(1.5)).to.equal(1.0)
     end)
 
     it("treats nil as 0", function()
       local b = bind { g }
-      assert.equals(0.0, b.scorer.score(nil))
+      expect(b.scorer.score(nil)).to.equal(0.0)
     end)
   end)
 end)

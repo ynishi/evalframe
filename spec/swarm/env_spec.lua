@@ -1,6 +1,7 @@
 local sw = require("evalframe.swarm")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.env", function()
 
   -- ============================================================
@@ -13,17 +14,17 @@ describe("sw.env", function()
         scenario = "memory_leak",
         services = { "user-service", "db-service" },
       }
-      assert.is_true(sw.is_env(env))
-      assert.equals("troubleshooting", env.name)
-      assert.equals("memory_leak", env.context.scenario)
-      assert.same({ "user-service", "db-service" }, env.context.services)
+      expect(sw.is_env(env)).to.equal(true)
+      expect(env.name).to.equal("troubleshooting")
+      expect(env.context.scenario).to.equal("memory_leak")
+      expect(env.context.services).to.equal({ "user-service", "db-service" })
     end)
 
     it("creates with minimal spec (name only)", function()
       local env = sw.env "empty" {}
-      assert.is_true(sw.is_env(env))
-      assert.equals("empty", env.name)
-      assert.same({}, env.context)
+      expect(sw.is_env(env)).to.equal(true)
+      expect(env.name).to.equal("empty")
+      expect(env.context).to.equal({})
     end)
 
     it("defensive-copies context (caller mutation does not affect env)", function()
@@ -31,8 +32,8 @@ describe("sw.env", function()
       local env = sw.env "test" (spec)
       spec.scenario = "CHANGED"
       spec.injected = true
-      assert.equals("leak", env.context.scenario)
-      assert.is_nil(env.context.injected)
+      expect(env.context.scenario).to.equal("leak")
+      expect(env.context.injected).to.equal(nil)
     end)
 
     it("stores all spec fields in context", function()
@@ -41,9 +42,9 @@ describe("sw.env", function()
         seed = 42,
         nested = { a = 1, b = 2 },
       }
-      assert.equals("hard", env.context.difficulty)
-      assert.equals(42, env.context.seed)
-      assert.same({ a = 1, b = 2 }, env.context.nested)
+      expect(env.context.difficulty).to.equal("hard")
+      expect(env.context.seed).to.equal(42)
+      expect(env.context.nested).to.equal({ a = 1, b = 2 })
     end)
   end)
 

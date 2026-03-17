@@ -2,6 +2,7 @@ local ef = require("evalframe")
 local sw = require("evalframe.swarm")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("Swarm E2E", function()
 
   -- ============================================================
@@ -98,9 +99,9 @@ describe("Swarm E2E", function()
         },
       }:run()
 
-      assert.equals(1, report.aggregated.total)
-      assert.is_true(report.aggregated.pass_rate >= 0)
-      assert.is_true(report.results[1].score > 0.5)
+      expect(report.aggregated.total).to.equal(1)
+      expect(report.aggregated.pass_rate >= 0).to.equal(true)
+      expect(report.results[1].score > 0.5).to.equal(true)
     end)
 
     it("evaluates failed swarm run", function()
@@ -120,9 +121,9 @@ describe("Swarm E2E", function()
         },
       }:run()
 
-      assert.equals(1, report.aggregated.total)
-      assert.equals(0, report.aggregated.passed)
-      assert.equals(0.0, report.results[1].score)
+      expect(report.aggregated.total).to.equal(1)
+      expect(report.aggregated.passed).to.equal(0)
+      expect(report.results[1].score).to.equal(0.0)
     end)
   end)
 
@@ -148,7 +149,7 @@ describe("Swarm E2E", function()
         mode = "cross",
       }
 
-      assert.equals(4, #configs)
+      expect(#configs).to.equal(4)
 
       local reports = {}
       for _, cfg in ipairs(configs) do
@@ -173,10 +174,10 @@ describe("Swarm E2E", function()
         reports[cfg.name] = report.aggregated.pass_rate
       end
 
-      assert.equals(1.0, reports["small_ucb1"])
-      assert.equals(1.0, reports["small_greedy"])
-      assert.equals(1.0, reports["medium_ucb1"])
-      assert.equals(1.0, reports["medium_greedy"])
+      expect(reports["small_ucb1"]).to.equal(1.0)
+      expect(reports["small_greedy"]).to.equal(1.0)
+      expect(reports["medium_ucb1"]).to.equal(1.0)
+      expect(reports["medium_greedy"]).to.equal(1.0)
     end)
   end)
 
@@ -197,7 +198,7 @@ describe("Swarm E2E", function()
       }:run()
 
       -- success_runner has 1 restart, <= 2 -> pass
-      assert.equals(1, report.aggregated.passed)
+      expect(report.aggregated.passed).to.equal(1)
     end)
 
     it("checks all workers active via DSL grader", function()
@@ -211,7 +212,7 @@ describe("Swarm E2E", function()
         cases = { ef.case { input = "test" } },
       }:run()
 
-      assert.equals(1, report.aggregated.passed)
+      expect(report.aggregated.passed).to.equal(1)
     end)
 
     it("all_workers_active fails for single-worker trace", function()
@@ -226,7 +227,7 @@ describe("Swarm E2E", function()
       }:run()
 
       -- timeout_runner only uses w-0
-      assert.equals(0, report.aggregated.passed)
+      expect(report.aggregated.passed).to.equal(0)
     end)
 
     it("custom graders access trace fields directly", function()
@@ -247,7 +248,7 @@ describe("Swarm E2E", function()
         cases = { ef.case { input = "test" } },
       }:run()
 
-      assert.equals(1, report.aggregated.passed)
+      expect(report.aggregated.passed).to.equal(1)
     end)
   end)
 
@@ -271,8 +272,8 @@ describe("Swarm E2E", function()
         cases = { ef.case { input = "test" } },
       }:run()
 
-      assert.equals(0, report.aggregated.passed)
-      assert.truthy(report.results[1].response.error)
+      expect(report.aggregated.passed).to.equal(0)
+      expect(report.results[1].response.error).to.be.truthy()
     end)
   end)
 end)

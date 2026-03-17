@@ -4,6 +4,7 @@ local case        = require("evalframe.model.case")
 local mock        = require("evalframe.providers.mock")
 local h           = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("LLM Graders (Tier 2)", function()
 
   -- ============================================================
@@ -45,8 +46,8 @@ describe("LLM Graders (Tier 2)", function()
       local judge = llm_graders.rubric("Rate accuracy", {
         provider = mock.static("4"),
       })
-      assert.is_true(grader.is_grader(judge))
-      assert.truthy(judge.name:find("^llm_judge:"))
+      expect(grader.is_grader(judge)).to.equal(true)
+      expect(judge.name:find("^llm_judge:")).to.be.truthy()
     end)
 
     it("extracts numeric rating from judge response", function()
@@ -55,7 +56,7 @@ describe("LLM Graders (Tier 2)", function()
       })
       local c = case { input = "What is 2+2?", expected = "4" }
       local val = judge.check({ text = "4" }, c)
-      assert.equals(4, val)
+      expect(val).to.equal(4)
     end)
 
     it("handles rating with surrounding text", function()
@@ -64,7 +65,7 @@ describe("LLM Graders (Tier 2)", function()
       })
       local c = case { input = "q" }
       local val = judge.check({ text = "answer" }, c)
-      assert.equals(3, val)
+      expect(val).to.equal(3)
     end)
 
     it("clamps to scale range", function()
@@ -74,7 +75,7 @@ describe("LLM Graders (Tier 2)", function()
       })
       local c = case { input = "q" }
       local val = judge.check({ text = "answer" }, c)
-      assert.equals(5, val)
+      expect(val).to.equal(5)
     end)
 
     it("returns error on non-numeric response", function()
@@ -83,8 +84,8 @@ describe("LLM Graders (Tier 2)", function()
       })
       local c = case { input = "q" }
       local val, err = judge.check({ text = "answer" }, c)
-      assert.is_nil(val)
-      assert.truthy(err:find("did not return a number"))
+      expect(val).to.equal(nil)
+      expect(err:find("did not return a number")).to.be.truthy()
     end)
   end)
 
@@ -98,7 +99,7 @@ describe("LLM Graders (Tier 2)", function()
         provider = mock.static("Yes"),
       })
       local val = judge.check({ text = "4" }, case { input = "2+2?" })
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
 
     it("returns false for no", function()
@@ -106,7 +107,7 @@ describe("LLM Graders (Tier 2)", function()
         provider = mock.static("No"),
       })
       local val = judge.check({ text = "5" }, case { input = "2+2?" })
-      assert.is_false(val)
+      expect(val).to.equal(false)
     end)
 
     it("handles case insensitivity", function()
@@ -114,7 +115,7 @@ describe("LLM Graders (Tier 2)", function()
         provider = mock.static("YES"),
       })
       local val = judge.check({ text = "4" }, case { input = "2+2?" })
-      assert.is_true(val)
+      expect(val).to.equal(true)
     end)
   end)
 
@@ -129,7 +130,7 @@ describe("LLM Graders (Tier 2)", function()
       })
       local c = case { input = "Capital of Japan?", expected = "Tokyo" }
       local val = judge.check({ text = "Tokyo" }, c)
-      assert.equals(5, val)
+      expect(val).to.equal(5)
     end)
 
     it("handles provider error", function()
@@ -138,8 +139,8 @@ describe("LLM Graders (Tier 2)", function()
       })
       local c = case { input = "q", expected = "a" }
       local val, err = judge.check({ text = "x" }, c)
-      assert.is_nil(val)
-      assert.equals("timeout", err)
+      expect(val).to.equal(nil)
+      expect(err).to.equal("timeout")
     end)
   end)
 end)

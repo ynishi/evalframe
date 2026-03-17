@@ -1,6 +1,7 @@
 local sw = require("evalframe.swarm")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.provider", function()
 
   local env = sw.env "test_env" { scenario = "basic" }
@@ -32,7 +33,7 @@ describe("sw.provider", function()
         swarm   = swarm_cfg,
       })
 
-      assert.equals("function", type(provider))
+      expect(type(provider)).to.equal("function")
     end)
 
     it("calls runner with merged config including input", function()
@@ -54,10 +55,10 @@ describe("sw.provider", function()
 
       provider("solve the problem")
 
-      assert.equals("solve the problem", captured_config.input)
-      assert.is_true(sw.is_env(captured_config.env))
-      assert.is_true(sw.is_action_space(captured_config.actions))
-      assert.is_true(sw.is_swarm_config(captured_config.swarm))
+      expect(captured_config.input).to.equal("solve the problem")
+      expect(sw.is_env(captured_config.env)).to.equal(true)
+      expect(sw.is_action_space(captured_config.actions)).to.equal(true)
+      expect(sw.is_swarm_config(captured_config.swarm)).to.equal(true)
     end)
   end)
 
@@ -87,15 +88,15 @@ describe("sw.provider", function()
       local resp = provider("input")
 
       -- evalframe response contract fields
-      assert.equals("string", type(resp.text))
-      assert.equals("number", type(resp.latency_ms))
+      expect(type(resp.text)).to.equal("string")
+      expect(type(resp.latency_ms)).to.equal("number")
 
       -- SwarmTrace fields
-      assert.is_true(sw.is_trace(resp))
-      assert.equals(true, resp.success)
-      assert.equals(5, resp.ticks)
-      assert.equals("success", resp.termination)
-      assert.equals(1, #resp.actions)
+      expect(sw.is_trace(resp)).to.equal(true)
+      expect(resp.success).to.equal(true)
+      expect(resp.ticks).to.equal(5)
+      expect(resp.termination).to.equal("success")
+      expect(#resp.actions).to.equal(1)
     end)
 
     it("measures latency when runner does not provide it", function()
@@ -111,8 +112,8 @@ describe("sw.provider", function()
       })
 
       local resp = provider("input")
-      assert.equals("number", type(resp.latency_ms))
-      assert.is_true(resp.latency_ms >= 0)
+      expect(type(resp.latency_ms)).to.equal("number")
+      expect(resp.latency_ms >= 0).to.equal(true)
     end)
 
     it("preserves runner-provided latency_ms", function()
@@ -129,7 +130,7 @@ describe("sw.provider", function()
       })
 
       local resp = provider("input")
-      assert.equals(42.5, resp.latency_ms)
+      expect(resp.latency_ms).to.equal(42.5)
     end)
 
     it("does not mutate runner's return table", function()
@@ -148,7 +149,7 @@ describe("sw.provider", function()
 
       provider("input")
       -- runner's return table should not have latency_ms injected
-      assert.is_nil(returned_table.latency_ms)
+      expect(returned_table.latency_ms).to.equal(nil)
     end)
   end)
 
@@ -167,9 +168,9 @@ describe("sw.provider", function()
       })
 
       local resp = provider("input")
-      assert.equals("", resp.text)
-      assert.truthy(resp.error)
-      assert.truthy(resp.error:find("connection refused"))
+      expect(resp.text).to.equal("")
+      expect(resp.error).to.be.truthy()
+      expect(resp.error:find("connection refused")).to.be.truthy()
     end)
   end)
 

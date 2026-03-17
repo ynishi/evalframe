@@ -1,6 +1,7 @@
 local ef = require("evalframe")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("E2E", function()
 
   -- ============================================================
@@ -27,9 +28,9 @@ describe("E2E", function()
       }
 
       local report = s:run()
-      assert.equals(3, report.aggregated.total)
-      assert.equals(3, report.aggregated.passed)
-      assert.equals(1.0, report.aggregated.pass_rate)
+      expect(report.aggregated.total).to.equal(3)
+      expect(report.aggregated.passed).to.equal(3)
+      expect(report.aggregated.pass_rate).to.equal(1.0)
     end)
 
     it("detects failures", function()
@@ -43,9 +44,9 @@ describe("E2E", function()
       }
 
       local report = s:run()
-      assert.equals(2, report.aggregated.total)
-      assert.equals(1, report.aggregated.passed)
-      assert.equals(1, #report.failures)
+      expect(report.aggregated.total).to.equal(2)
+      expect(report.aggregated.passed).to.equal(1)
+      expect(#report.failures).to.equal(1)
     end)
 
     it("produces readable summary", function()
@@ -61,11 +62,11 @@ describe("E2E", function()
 
       local report = s:run()
       local text = report:summary()
-      assert.truthy(text:find("Suite: summary_test"))
-      assert.truthy(text:find("Pass: 2"))
-      assert.truthy(text:find("Fail: 1"))
-      assert.truthy(text:find("basic"))
-      assert.truthy(text:find("edge"))
+      expect(text:find("Suite: summary_test")).to.be.truthy()
+      expect(text:find("Pass: 2")).to.be.truthy()
+      expect(text:find("Fail: 1")).to.be.truthy()
+      expect(text:find("basic")).to.be.truthy()
+      expect(text:find("edge")).to.be.truthy()
     end)
   end)
 
@@ -91,8 +92,8 @@ describe("E2E", function()
 
       -- contains passes (1.0 * 0.7), exact fails (0.0 * 0.3)
       -- weighted = 0.7 / 1.0 = 0.7
-      assert.near(0.7, result.score, 0.01)
-      assert.is_false(result.passed)  -- < 1.0
+      expect(result.score).to.equal(0.7, 0.01)
+      expect(result.passed).to.equal(false)  -- < 1.0
     end)
   end)
 
@@ -122,7 +123,7 @@ describe("E2E", function()
       local report = s:run()
       local result = report.results[1]
       -- rating=4, linear_1_5: (4-1)/(5-1) = 0.75
-      assert.near(0.75, result.score, 0.01)
+      expect(result.score).to.equal(0.75, 0.01)
     end)
   end)
 
@@ -145,8 +146,8 @@ describe("E2E", function()
         cases = cases,
       }:run()
 
-      assert.equals(2, report.aggregated.total)
-      assert.equals(2, report.aggregated.passed)
+      expect(report.aggregated.total).to.equal(2)
+      expect(report.aggregated.passed).to.equal(2)
     end)
 
     it("merges load_file results with inline cases", function()
@@ -166,8 +167,8 @@ describe("E2E", function()
         cases = all_cases,
       }:run()
 
-      assert.equals(3, report.aggregated.total)
-      assert.equals(3, report.aggregated.passed)
+      expect(report.aggregated.total).to.equal(3)
+      expect(report.aggregated.passed).to.equal(3)
     end)
   end)
 
@@ -202,8 +203,8 @@ describe("E2E", function()
         results[cfg.name] = report.aggregated.pass_rate
       end
 
-      assert.equals(1.0, results["casual"])
-      assert.equals(1.0, results["formal"])
+      expect(results["casual"]).to.equal(1.0)
+      expect(results["formal"]).to.equal(1.0)
     end)
   end)
 
@@ -225,8 +226,8 @@ describe("E2E", function()
 
       -- Should not crash
       local report = s:run()
-      assert.equals(1, report.aggregated.total)
-      assert.equals(0, report.aggregated.passed)
+      expect(report.aggregated.total).to.equal(1)
+      expect(report.aggregated.passed).to.equal(0)
     end)
 
     it("rejects suite with no cases on run", function()
@@ -263,9 +264,9 @@ describe("E2E", function()
 
       local report = s:run()
       local grade = report.results[1].grades[1]
-      assert.equals(0.0, grade.score)
-      assert.truthy(grade.warning)
-      assert.truthy(grade.warning:find("type mismatch"))
+      expect(grade.score).to.equal(0.0)
+      expect(grade.warning).to.be.truthy()
+      expect(grade.warning:find("type mismatch")).to.be.truthy()
     end)
 
     it("truncates multi-byte input label at character boundary", function()
@@ -283,7 +284,7 @@ describe("E2E", function()
       -- Label should be 13 complete "あ" (39 bytes) + "..."
       -- 13 chars * 3 bytes = 39 bytes (largest complete char boundary <= 40)
       local expected_label = string.rep("\xe3\x81\x82", 13) .. "..."
-      assert.truthy(text:find(expected_label, 1, true))
+      expect(text:find(expected_label, 1, true)).to.be.truthy()
     end)
 
     it("does not warn on normal bool grader", function()
@@ -297,7 +298,7 @@ describe("E2E", function()
 
       local report = s:run()
       local grade = report.results[1].grades[1]
-      assert.is_nil(grade.warning)
+      expect(grade.warning).to.equal(nil)
     end)
   end)
 end)

@@ -1,6 +1,7 @@
 local sw = require("evalframe.swarm")
 local h  = require("spec.spec_helper")
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.trace", function()
 
   local function sample_trace()
@@ -36,18 +37,18 @@ describe("sw.trace", function()
   describe("construction", function()
     it("creates trace from raw table", function()
       local t = sample_trace()
-      assert.is_true(sw.is_trace(t))
-      assert.equals("resolved memory leak", t.text)
-      assert.equals(true, t.success)
-      assert.equals(15, t.ticks)
-      assert.equals("success", t.termination)
-      assert.equals(6, #t.actions)
+      expect(sw.is_trace(t)).to.equal(true)
+      expect(t.text).to.equal("resolved memory leak")
+      expect(t.success).to.equal(true)
+      expect(t.ticks).to.equal(15)
+      expect(t.termination).to.equal("success")
+      expect(#t.actions).to.equal(6)
     end)
 
     it("preserves metrics", function()
       local t = sample_trace()
-      assert.equals(1.0, t.metrics.task_completion)
-      assert.equals(0.8, t.metrics.coordination)
+      expect(t.metrics.task_completion).to.equal(1.0)
+      expect(t.metrics.coordination).to.equal(0.8)
     end)
 
     it("defensive-copies actions (caller mutation does not affect trace)", function()
@@ -58,8 +59,8 @@ describe("sw.trace", function()
         termination = "success", actions = acts,
       }
       acts[1] = { tick = 99, worker = "w-9", action = "Mutated", result = "bad" }
-      assert.equals("Act", t.actions[1].action)
-      assert.equals(1, #t.actions)
+      expect(t.actions[1].action).to.equal("Act")
+      expect(#t.actions).to.equal(1)
     end)
 
     it("defensive-copies metrics (caller mutation does not affect trace)", function()
@@ -69,8 +70,8 @@ describe("sw.trace", function()
       }
       m.score = 0.0
       m.injected = true
-      assert.equals(1.0, t.metrics.score)
-      assert.is_nil(t.metrics.injected)
+      expect(t.metrics.score).to.equal(1.0)
+      expect(t.metrics.injected).to.equal(nil)
     end)
 
     it("creates minimal trace", function()
@@ -82,7 +83,7 @@ describe("sw.trace", function()
         actions     = {},
         metrics     = {},
       }
-      assert.is_true(sw.is_trace(t))
+      expect(sw.is_trace(t)).to.equal(true)
     end)
   end)
 
@@ -165,10 +166,10 @@ describe("sw.trace", function()
         termination = "failure",
         actions     = {},
       }
-      assert.equals("", t.text)
-      assert.equals(false, t.success)
-      assert.equals(0, t.ticks)
-      assert.same({}, t.metrics)
+      expect(t.text).to.equal("")
+      expect(t.success).to.equal(false)
+      expect(t.ticks).to.equal(0)
+      expect(t.metrics).to.equal({})
     end)
   end)
 
@@ -179,39 +180,39 @@ describe("sw.trace", function()
   describe("direct field access", function()
     it("success field is boolean", function()
       local t = sample_trace()
-      assert.is_true(t.success)
+      expect(t.success).to.equal(true)
 
       local t2 = sw.trace { termination = "failure", actions = {} }
-      assert.is_false(t2.success)
+      expect(t2.success).to.equal(false)
     end)
 
     it("ticks field is number", function()
       local t = sample_trace()
-      assert.equals(15, t.ticks)
+      expect(t.ticks).to.equal(15)
     end)
 
     it("metrics are accessible by name", function()
       local t = sample_trace()
-      assert.equals(1.0, t.metrics.task_completion)
-      assert.equals(0.8, t.metrics.coordination)
-      assert.is_nil(t.metrics.nonexistent)
+      expect(t.metrics.task_completion).to.equal(1.0)
+      expect(t.metrics.coordination).to.equal(0.8)
+      expect(t.metrics.nonexistent).to.equal(nil)
     end)
 
     it("actions are iterable", function()
       local t = sample_trace()
       local count = 0
       for _, a in ipairs(t.actions) do
-        assert.is_string(a.action)
-        assert.is_string(a.worker)
-        assert.is_number(a.tick)
+        expect(a.action).to.be.a("string")
+        expect(a.worker).to.be.a("string")
+        expect(a.tick).to.be.a("number")
         count = count + 1
       end
-      assert.equals(6, count)
+      expect(count).to.equal(6)
     end)
 
     it("termination is a string", function()
       local t = sample_trace()
-      assert.equals("success", t.termination)
+      expect(t.termination).to.equal("success")
     end)
   end)
 end)

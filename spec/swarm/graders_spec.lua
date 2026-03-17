@@ -47,6 +47,7 @@ local function failure_trace()
 end
 
 
+local describe, it, expect = lust.describe, lust.it, lust.expect
 describe("sw.graders", function()
 
   -- ============================================================
@@ -56,12 +57,12 @@ describe("sw.graders", function()
   describe("completed", function()
     it("returns true for successful trace", function()
       local grade = check(sw.graders.completed, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("returns false for failed trace", function()
       local grade = check(sw.graders.completed, failure_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
   end)
 
@@ -73,25 +74,25 @@ describe("sw.graders", function()
     it("returns 1.0 when ticks <= optimal", function()
       local g = sw.graders.efficiency { max_ticks = 20, optimal_ticks = 10 }
       local grade = check(g, success_trace({ ticks = 5 }))
-      assert.equals(1.0, grade)
+      expect(grade).to.equal(1.0)
     end)
 
     it("returns 0.0 when ticks >= max", function()
       local g = sw.graders.efficiency { max_ticks = 20, optimal_ticks = 5 }
       local grade = check(g, success_trace({ ticks = 20 }))
-      assert.equals(0.0, grade)
+      expect(grade).to.equal(0.0)
     end)
 
     it("linearly interpolates between optimal and max", function()
       local g = sw.graders.efficiency { max_ticks = 20, optimal_ticks = 0 }
       local grade = check(g, success_trace({ ticks = 10 }))
-      assert.near(0.5, grade, 0.01)
+      expect(grade).to.equal(0.5, 0.01)
     end)
 
     it("returns 1.0 at exactly optimal_ticks", function()
       local g = sw.graders.efficiency { max_ticks = 20, optimal_ticks = 10 }
       local grade = check(g, success_trace({ ticks = 10 }))
-      assert.equals(1.0, grade)
+      expect(grade).to.equal(1.0)
     end)
 
     it("rejects missing max_ticks", function()
@@ -115,7 +116,7 @@ describe("sw.graders", function()
     it("defaults optimal_ticks to 0", function()
       local g = sw.graders.efficiency { max_ticks = 10 }
       local grade = check(g, success_trace({ ticks = 0 }))
-      assert.equals(1.0, grade)
+      expect(grade).to.equal(1.0)
     end)
   end)
 
@@ -127,13 +128,13 @@ describe("sw.graders", function()
     it("returns true when action exists", function()
       local g = sw.graders.action_taken("ReadLogs")
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("returns false when action missing", function()
       local g = sw.graders.action_taken("NonExistent")
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
   end)
 
@@ -145,26 +146,26 @@ describe("sw.graders", function()
     it("returns true when actions appear in order", function()
       local g = sw.graders.action_sequence { "CheckStatus", "ReadLogs", "RestartService" }
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("returns false when order is violated", function()
       local g = sw.graders.action_sequence { "RestartService", "ReadLogs" }
       -- RestartService at tick 7, ReadLogs at tick 3 (no ReadLogs after tick 7)
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("returns true for single-action sequence", function()
       local g = sw.graders.action_sequence { "ReadLogs" }
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("returns false when action is missing from trace", function()
       local g = sw.graders.action_sequence { "CheckStatus", "NonExistent" }
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("rejects empty sequence", function()
@@ -175,7 +176,7 @@ describe("sw.graders", function()
 
     it("includes sequence in grader name", function()
       local g = sw.graders.action_sequence { "A", "B", "C" }
-      assert.equals("sw.action_sequence:A,B,C", g.name)
+      expect(g.name).to.equal("sw.action_sequence:A,B,C")
     end)
   end)
 
@@ -187,37 +188,37 @@ describe("sw.graders", function()
     it("passes when count within max", function()
       local g = sw.graders.action_count("RestartService", { max = 2 })
       local grade = check(g, success_trace())
-      assert.is_true(grade)  -- 1 restart <= 2
+      expect(grade).to.equal(true)  -- 1 restart <= 2
     end)
 
     it("fails when count exceeds max", function()
       local g = sw.graders.action_count("CheckStatus", { max = 1 })
       local grade = check(g, success_trace())
-      assert.is_false(grade)  -- 2 CheckStatus > 1
+      expect(grade).to.equal(false)  -- 2 CheckStatus > 1
     end)
 
     it("passes when count meets min", function()
       local g = sw.graders.action_count("ReadLogs", { min = 1 })
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("fails when count below min", function()
       local g = sw.graders.action_count("RestartService", { min = 3 })
       local grade = check(g, success_trace())
-      assert.is_false(grade)  -- 1 restart < 3
+      expect(grade).to.equal(false)  -- 1 restart < 3
     end)
 
     it("supports min and max together", function()
       local g = sw.graders.action_count("CheckStatus", { min = 1, max = 5 })
       local grade = check(g, success_trace())
-      assert.is_true(grade)  -- 2 CheckStatus in [1,5]
+      expect(grade).to.equal(true)  -- 2 CheckStatus in [1,5]
     end)
 
     it("returns true for zero count when max >= 0", function()
       local g = sw.graders.action_count("NonExistent", { max = 5 })
       local grade = check(g, success_trace())
-      assert.is_true(grade)  -- 0 <= 5
+      expect(grade).to.equal(true)  -- 0 <= 5
     end)
 
     it("rejects missing thresholds", function()
@@ -235,13 +236,13 @@ describe("sw.graders", function()
     it("passes when multiple workers contribute (default >= 2)", function()
       local g = sw.graders.all_workers_active()
       local grade = check(g, success_trace())
-      assert.is_true(grade)  -- w-0 and w-1 both active
+      expect(grade).to.equal(true)  -- w-0 and w-1 both active
     end)
 
     it("fails for single-worker trace (default >= 2)", function()
       local g = sw.graders.all_workers_active()
       local grade = check(g, failure_trace())
-      assert.is_false(grade)  -- only w-0
+      expect(grade).to.equal(false)  -- only w-0
     end)
 
     it("fails for empty actions", function()
@@ -250,19 +251,19 @@ describe("sw.graders", function()
         termination = "failure", actions = {},
       }
       local grade = check(g, t)
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("passes when worker count meets explicit threshold", function()
       local g = sw.graders.all_workers_active { workers = 2 }
       local grade = check(g, success_trace())
-      assert.is_true(grade)  -- w-0 and w-1
+      expect(grade).to.equal(true)  -- w-0 and w-1
     end)
 
     it("fails when worker count below explicit threshold", function()
       local g = sw.graders.all_workers_active { workers = 3 }
       local grade = check(g, success_trace())
-      assert.is_false(grade)  -- only w-0 and w-1 (2 < 3)
+      expect(grade)  -- only w-0 and w-1 (2 < 3).to.equal(false)
     end)
   end)
 
@@ -274,37 +275,37 @@ describe("sw.graders", function()
     it("passes when metric meets min threshold", function()
       local g = sw.graders.metric("throughput", { min = 2.0 })
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("fails when metric below min", function()
       local g = sw.graders.metric("throughput", { min = 10.0 })
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("passes when metric meets max threshold", function()
       local g = sw.graders.metric("error_count", { max = 3 })
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("fails when metric exceeds max", function()
       local g = sw.graders.metric("error_count", { max = 0 })
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("supports both min and max together", function()
       local g = sw.graders.metric("throughput", { min = 1.0, max = 5.0 })
       local grade = check(g, success_trace())  -- throughput = 3.5
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("fails when metric missing from trace", function()
       local g = sw.graders.metric("nonexistent", { min = 0 })
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("rejects missing thresholds", function()
@@ -325,7 +326,7 @@ describe("sw.graders", function()
       end)
       local grade = check(g, success_trace())
       -- At tick 3: CheckStatus(1) + ReadLogs(3) = 2 actions
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("fails when check function returns false", function()
@@ -333,7 +334,7 @@ describe("sw.graders", function()
         return snap.action_count >= 5
       end)
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("provides action_counts in snapshot", function()
@@ -342,7 +343,7 @@ describe("sw.graders", function()
            and (snap.action_counts["ReadLogs"] or 0) >= 1
       end)
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
   end)
 
@@ -357,7 +358,7 @@ describe("sw.graders", function()
       end)
       -- ReadLogs first at tick 3, by then: CheckStatus(1) + ReadLogs(3) = 2 actions
       local grade = check(g, success_trace())
-      assert.is_true(grade)
+      expect(grade).to.equal(true)
     end)
 
     it("returns false when action never occurred", function()
@@ -365,7 +366,7 @@ describe("sw.graders", function()
         return true
       end)
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
 
     it("returns false when check function fails", function()
@@ -373,7 +374,7 @@ describe("sw.graders", function()
         return snap.action_count >= 100
       end)
       local grade = check(g, success_trace())
-      assert.is_false(grade)
+      expect(grade).to.equal(false)
     end)
   end)
 end)

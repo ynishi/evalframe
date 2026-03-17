@@ -30,6 +30,17 @@ enum Command {
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
     },
+
+    /// Run spec files on the mlua VM using lspec
+    Test {
+        /// Spec files or directories to run
+        #[arg(default_value = "spec")]
+        paths: Vec<PathBuf>,
+
+        /// Only run specs matching this pattern
+        #[arg(short = 'f', long)]
+        filter: Option<String>,
+    },
 }
 
 // ============================================================
@@ -154,8 +165,160 @@ fn run() -> Result<i32, Box<dyn std::error::Error>> {
             json,
             output,
         } => run_suite(&suite, json, output.as_deref()),
+        Command::Test { paths, filter } => run_spec_tests(&paths, filter.as_deref()),
     }
 }
+
+// ============================================================
+// Test runner — execute spec files on mlua VM with lspec
+// ============================================================
+
+/// Collect spec files from paths (files or directories).
+/// Recursively finds `*_spec.lua` files in directories.
+fn collect_spec_files(paths: &[PathBuf]) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+    let mut specs = Vec::new();
+    for path in paths {
+        if path.is_file() {
+            specs.push(path.clone());
+        } else if path.is_dir() {
+            collect_specs_recursive(path, &mut specs)?;
+        } else {
+            return Err(format!("{} is not a file or directory", path.display()).into());
+        }
+    }
+    specs.sort();
+    Ok(specs)
+}
+
+fn collect_specs_recursive(
+    dir: &std::path::Path,
+    out: &mut Vec<PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_specs_recursive(&path, out)?;
+        } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if name.ends_with("_spec.lua") {
+                out.push(path);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Run spec files on the mlua VM using lspec.
+///
+/// Each spec file runs in a fresh VM with:
+///   - mlua-batteries `std` global
+///   - evalframe modules available via require()
+///   - lspec `lust` global (describe/it/expect)
+///   - spec helper available via require("spec.spec_helper")
+fn run_spec_tests(
+    paths: &[PathBuf],
+    filter: Option<&str>,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    let spec_files = collect_spec_files(paths)?;
+    if spec_files.is_empty() {
+        eprintln!("evalframe test: no spec files found");
+        return Ok(1);
+    }
+
+    let start = std::time::Instant::now();
+    let mut total_passed = 0usize;
+    let mut total_failed = 0usize;
+    let mut failed_details: Vec<(String, Vec<mlua_lspec::TestResult>)> = Vec::new();
+
+    for spec_path in &spec_files {
+        // Use a dummy path for create_lua — spec's parent provides co-located requires
+        let lua = create_lua(spec_path)?;
+
+        // Register lspec framework (lust global)
+        mlua_lspec::register(&lua).map_err(|e| format!("Failed to register lspec: {e}"))?;
+
+        // Load and run the spec file
+        let source = std::fs::read_to_string(spec_path)
+            .map_err(|e| format!("Failed to read {}: {e}", spec_path.display()))?;
+
+        if let Err(e) = lua
+            .load(source.as_str())
+            .set_name(spec_path.to_string_lossy().as_ref())
+            .exec()
+        {
+            eprintln!("  ERROR in {}: {e}", spec_path.display());
+            total_failed += 1;
+            continue;
+        }
+
+        // Collect results
+        let summary = mlua_lspec::collect_results(&lua).map_err(|e| {
+            format!(
+                "Failed to collect results from {}: {e}",
+                spec_path.display()
+            )
+        })?;
+
+        total_passed += summary.passed;
+        total_failed += summary.failed;
+
+        // Report per-file status
+        let status = if summary.failed == 0 { "PASS" } else { "FAIL" };
+        let spec_name = spec_path
+            .strip_prefix(std::env::current_dir().unwrap_or_default())
+            .unwrap_or(spec_path)
+            .display();
+        eprintln!(
+            "  {status} {spec_name} ({}/{})",
+            summary.passed, summary.total
+        );
+
+        // Collect failures for detail report
+        if summary.failed > 0 {
+            let failures: Vec<_> = summary.tests.into_iter().filter(|t| !t.passed).collect();
+            if let Some(f) = filter {
+                let filtered: Vec<_> = failures
+                    .into_iter()
+                    .filter(|t| t.name.contains(f) || t.suite.contains(f))
+                    .collect();
+                if !filtered.is_empty() {
+                    failed_details.push((spec_name.to_string(), filtered));
+                }
+            } else {
+                failed_details.push((spec_name.to_string(), failures));
+            }
+        }
+    }
+
+    let elapsed = start.elapsed().as_secs_f64();
+
+    // Summary
+    eprintln!();
+    if !failed_details.is_empty() {
+        eprintln!("Failures:");
+        for (file, failures) in &failed_details {
+            for f in failures {
+                eprintln!("  {} > {} > {}", file, f.suite, f.name);
+                if let Some(ref err) = f.error {
+                    eprintln!("    {err}");
+                }
+            }
+        }
+        eprintln!();
+    }
+
+    let total = total_passed + total_failed;
+    eprintln!(
+        "{} specs, {} passed, {} failed ({:.2}s)",
+        total, total_passed, total_failed, elapsed
+    );
+
+    Ok(if total_failed > 0 { 1 } else { 0 })
+}
+
+// ============================================================
+// Suite runner
+// ============================================================
 
 /// Execute an evaluation suite.
 ///
