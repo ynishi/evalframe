@@ -1,7 +1,7 @@
 --[[
-  providers/algocline.lua — algocline strategy provider
+  providers/algocline.lua — algocline providers
 
-  Runs an algocline strategy package as an evalframe provider.
+  Runs algocline strategy packages or direct alc.llm() as evalframe providers.
   Only works inside algocline's mlua VM (requires `alc` global).
 
   Usage:
@@ -16,11 +16,17 @@
       opts = { rounds = 5 },
     }
 
-    -- Use in suite
+    -- Direct LLM access (for LLM-as-Judge graders)
+    local judge = ef.providers.algocline.llm()
+
+    -- Use in suite with LLM-as-Judge
     local s = ef.suite "eval_reflect" {
-      provider = provider,
-      ef.bind { ef.graders.contains },
-      cases = { ef.case { input = "Review this code...", expected = "..." } },
+      provider = ef.providers.algocline { strategy = "reflect" },
+      ef.bind {
+        ef.llm_graders.rubric("Rate accuracy 1-5", { provider = judge }),
+        ef.scorers.linear_1_5,
+      },
+      cases = { ef.case { input = "Review this code...", expected = { "..." } } },
     }
 ]]
 
@@ -63,6 +69,44 @@ local function extract_text(result)
   end
   return tostring(r)
 end
+
+-- ============================================================
+-- Direct LLM provider (for LLM-as-Judge graders)
+-- ============================================================
+
+--- Create a direct alc.llm() provider.
+--- Calls alc.llm() with the input prompt and returns the response.
+--- Use this as the provider for llm_graders (rubric, yes_no, factuality).
+---@param opts? table  Reserved for future options
+---@return function provider(input) → response
+function M.llm(opts)
+  opts = opts or {}
+
+  if type(alc) ~= "table" or type(alc.llm) ~= "function" then
+    error("algocline.llm provider: requires algocline VM (alc global not found)", 2)
+  end
+
+  return function(input)
+    local start = std.time()
+    -- Call alc.llm() directly (no pcall wrapper).
+    -- Reason: alc.llm() yields via coroutine. grader.lua's safe_check
+    -- already wraps the grader in pcall, providing error protection.
+    -- Adding a second pcall here is redundant and may interfere with
+    -- mlua-isle's yield propagation through nested pcall boundaries.
+    local text = alc.llm(input)
+    local elapsed = (std.time() - start) * 1000
+
+    return {
+      text       = type(text) == "string" and text or tostring(text),
+      model      = "alc_llm",
+      latency_ms = elapsed,
+    }
+  end
+end
+
+-- ============================================================
+-- Strategy provider
+-- ============================================================
 
 --- Create an algocline strategy provider.
 ---@param opts table  { strategy: string, opts?: table }

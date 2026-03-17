@@ -12,12 +12,12 @@ evalframe takes LLM responses and scores them through a declarative grading pipe
 - **Startup in milliseconds** — no interpreter overhead, no venv
 - **Tables = config AND code** — conditionals, loops, function composition where YAML/TOML can't reach
 - **Embeddable in Rust** — via [mlua](https://github.com/mlua-rs/mlua), eval logic runs inside your Rust application
-- **Minimal dependencies** — lua-cjson only
+- **Minimal dependencies** — stdlib provided by [mlua-batteries](https://github.com/ynishi/mlua-batteries) (json, fs, time, http)
 
 ## Install
 
 ```bash
-luarocks install lua-cjson
+cargo install --path host
 ```
 
 ## Quick Start
@@ -431,8 +431,12 @@ end)
 
 ## Testing
 
+Tests run on the mlua VM using [lspec](https://github.com/ynishi/mlua-lspec) (built into the `evalframe` binary):
+
 ```bash
-busted spec/
+evalframe test              # run all specs in spec/
+evalframe test spec/e2e_spec.lua  # run a single spec file
+evalframe test -f "grader"  # filter by pattern
 ```
 
 ## Directory Structure
@@ -456,16 +460,15 @@ evalframe/
       analysis.lua        Multi-trace aggregate analysis
       provider.lua        Runner → Provider adapter
       graders.lua         Swarm-specific grader catalog
-  spec/                   Tests (busted)
+  spec/                   Tests (lspec on mlua VM)
   examples/               Usage examples
+  host/                   Rust host binary (mlua VM + CLI)
   doc/                    Design documentation
 ```
 
 ## Requirements
 
-- Lua 5.1+ (or LuaJIT)
-- [lua-cjson](https://github.com/openresty/lua-cjson)
-- [busted](https://github.com/lunarmodules/busted) (for running tests)
+- Rust toolchain (for building the host binary)
 - claude CLI (for `claude_cli` provider)
 
 ## License
