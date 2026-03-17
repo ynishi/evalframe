@@ -1,0 +1,1 @@
+pre-release-hook = ["sh", "-c", "rm -rf lua && mkdir -p lua && cp -r ../evalframe lua/evalframe"]

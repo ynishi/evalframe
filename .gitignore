@@ -1,2 +1,3 @@
 workspace/
 host/target/
+host/lua/

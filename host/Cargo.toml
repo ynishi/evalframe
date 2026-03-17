@@ -9,6 +9,8 @@ homepage = "https://github.com/ynishi/evalframe"
 keywords = ["eval", "llm", "lua", "testing", "benchmark"]
 categories = ["command-line-utilities", "development-tools::testing"]
 readme = "../README.md"
+build = "build.rs"
+include = ["src/", "build.rs", "lua/", "Cargo.toml", "Cargo.lock"]
 
 [[bin]]
 name = "evalframe"
@@ -19,4 +21,4 @@ clap = { version = "4", features = ["derive"] }
 mlua = { version = "0.11", features = ["lua54", "vendored"] }
 mlua-batteries = { version = "0.2.1", features = ["json", "fs", "time", "http"] }
 mlua-pkg = "0.2.1"
-mlua-lspec = { path = "../../mlua-lspec" }
+mlua-lspec = "0.2.0"

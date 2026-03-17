@@ -365,6 +365,8 @@ dependencies = [
 [[package]]
 name = "mlua-lspec"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3af94fecd5d3dccf5845756ddeebb88c9a1a47aaca7d4477a507cd6343dd82d2"
 dependencies = [
  "mlua",
 ]
